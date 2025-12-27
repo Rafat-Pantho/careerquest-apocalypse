@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300">
+  <defs>
+    <linearGradient id="gold-grad-text" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fcd34d;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="4" stdDeviation="2" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Icon Container -->
+  <g transform="translate(50, 20) scale(0.5)">
+    <path d="M256 48C150 48 64 134 64 240c0 88 72 192 192 256 120-64 192-168 192-256 0-106-86-192-192-192z" fill="#1f2937" stroke="url(#gold-grad-text)" stroke-width="16"/>
+    <path d="M256 120l-40 40 20 20-20 160 40 40 40-40-20-160 20-20-40-40z" fill="url(#gold-grad-text)"/>
+  </g>
+
+  <!-- Text -->
+  <text x="350" y="180" font-family="serif" font-weight="bold" font-size="140" fill="url(#gold-grad-text)" filter="url(#shadow)" style="font-family: 'Cinzel', serif;">
+    CAREER<tspan fill="#e5e7eb">QUEST</tspan>
+  </text>
+  
+  <text x="360" y="240" font-family="sans-serif" font-size="40" fill="#9ca3af" letter-spacing="10" style="font-family: 'Cinzel', serif;">
+    THE APOCALYPSE
+  </text>
+</svg>
