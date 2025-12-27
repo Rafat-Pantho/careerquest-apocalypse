@@ -19,13 +19,24 @@ Deploy with **Render** (Backend) and **Vercel** (Frontend).
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
 
-### Step 3: Set Environment Variables
-In Render dashboard → Environment, add:
+### Step 4: Configure MongoDB Atlas (Database)
+ since you already created an account:
+1. Log in to [MongoDB Atlas](https://cloud.mongodb.com)
+2. In your Cluster, click **Connect** → **Drivers**
+3. Copy the **connection string** (starts with `mongodb+srv://`)
+4. Replace `<password>` with your database user password
+5. **CRITICAL Step**: Go to **Network Access** (left sidebar)
+   - Click **Add IP Address**
+   - Click **Allow Access from Anywhere** (`0.0.0.0/0`)
+   - This allows Render's servers to reach your database
+
+### Step 5: Set Environment Variables on Render
+In Render dashboard → Your Service → **Environment**, add these variables:
 
 | Variable | Value |
 |----------|-------|
 | `NODE_ENV` | `production` |
-| `MONGODB_URI` | Your MongoDB Atlas connection string |
+| `MONGODB_URI` | Your new Atlas connection string (e.g. `mongodb+srv://user:pass@...`) |
 | `JWT_SECRET` | Generate a secure random string |
 | `JWT_EXPIRE` | `7d` |
 | `GOOGLE_CLIENT_ID` | Your Google OAuth client ID |
@@ -35,7 +46,7 @@ In Render dashboard → Environment, add:
 | `CLIENT_URL` | `https://YOUR-VERCEL-URL.vercel.app` |
 | `MAX_FILE_SIZE` | `5242880` |
 
-### Step 4: Deploy
+### Step 6: Deploy
 Click **Create Web Service**. Note your URL (e.g., `https://careerquest-api.onrender.com`).
 
 ---
