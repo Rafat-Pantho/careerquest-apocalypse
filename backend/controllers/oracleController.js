@@ -1,5 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const User = require("../models/User");
+const { User } = require("../models");
 
 // Initialize Gemini - check for API key
 let genAI = null;
@@ -149,7 +149,7 @@ const INTERVIEW_TYPES = {
       "What drives you through the wasteland when hope seems lost?",
       "What weakness festers within you, and how do you fight it?",
       "Describe your ideal band of survivors (team culture).",
-      "What legacy do you wish to carve into the ruins of this world?",
+      "What legacy do you wish to carve into the ruins of this world?"
     ]
   }
 };
@@ -267,7 +267,7 @@ exports.evaluateAnswer = async (req, res) => {
         `;
 
         const result = await model.generateContent(prompt);
-        
+
         // Clean the response and parse JSON
         let responseText = result.response.text();
         responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -369,18 +369,25 @@ exports.getInterviewSummary = async (req, res) => {
     // Update user stats if authenticated
     if (req.user) {
       try {
-        await User.findByIdAndUpdate(req.user._id, {
-          $push: {
-            interviewHistory: {
-              type: interviewType,
-              jobRole: jobRole || 'General',
-              score: averageScore,
-              date: new Date(),
-              title: summary.title
-            }
-          },
-          $inc: { interviewsCompleted: 1 }
+        const user = await User.findByPk(req.user.id);
+        const history = user.interviewHistory || [];
+        history.push({
+          type: interviewType,
+          jobRole: jobRole || 'General',
+          score: averageScore,
+          date: new Date(),
+          title: summary.title
         });
+
+        // Ensure manual update for JSON column
+        user.interviewHistory = [...history];
+
+        // Update streaks
+        const streaks = user.streaks || {};
+        streaks.interviewsCompleted = (streaks.interviewsCompleted || 0) + 1;
+        user.streaks = { ...streaks };
+
+        await user.save();
       } catch (userError) {
         console.log("Could not update user stats:", userError.message);
       }

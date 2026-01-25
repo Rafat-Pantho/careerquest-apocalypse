@@ -1,4 +1,4 @@
-const User = require('../models/User');
+const { User } = require('../models');
 
 // @desc    Register a new hero
 // @route   POST /api/auth/register
@@ -8,7 +8,7 @@ exports.register = async (req, res) => {
     const { name, email, password, heroClass, avatar } = req.body;
 
     // Check if user exists
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ where: { email } });
     if (userExists) {
       return res.status(400).json({
         success: false,
@@ -39,7 +39,7 @@ exports.register = async (req, res) => {
       success: true,
       token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.heroName,
         email: user.email,
         heroClass: user.heroClass,
@@ -73,7 +73,7 @@ exports.login = async (req, res) => {
     }
 
     // Check for user
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -97,7 +97,7 @@ exports.login = async (req, res) => {
       success: true,
       token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.heroName,
         email: user.email,
         heroClass: user.heroClass,
@@ -120,7 +120,7 @@ exports.login = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findByPk(req.user.id);
     res.status(200).json({
       success: true,
       data: user
@@ -142,20 +142,7 @@ exports.updateProfile = async (req, res) => {
   try {
     const { heroName, firstName, lastName, heroClass, avatar, heroicSummary } = req.body;
 
-    // Build update object with only provided fields
-    const updateFields = {};
-    if (heroName !== undefined) updateFields.heroName = heroName;
-    if (firstName !== undefined) updateFields.firstName = firstName;
-    if (lastName !== undefined) updateFields.lastName = lastName;
-    if (heroClass !== undefined) updateFields.heroClass = heroClass;
-    if (avatar !== undefined) updateFields.avatar = avatar;
-    if (heroicSummary !== undefined) updateFields.heroicSummary = heroicSummary;
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      updateFields,
-      { new: true, runValidators: true }
-    );
+    const user = await User.findByPk(req.user.id);
 
     if (!user) {
       return res.status(404).json({
@@ -163,6 +150,16 @@ exports.updateProfile = async (req, res) => {
         message: 'Hero not found in the realm!'
       });
     }
+
+    // Update fields
+    if (heroName !== undefined) user.heroName = heroName;
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (heroClass !== undefined) user.heroClass = heroClass;
+    if (avatar !== undefined) user.avatar = avatar;
+    if (heroicSummary !== undefined) user.heroicSummary = heroicSummary;
+
+    await user.save();
 
     res.status(200).json({
       success: true,

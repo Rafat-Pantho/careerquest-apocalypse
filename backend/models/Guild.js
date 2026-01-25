@@ -1,39 +1,39 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const guildSchema = new mongoose.Schema({
+const Guild = sequelize.define('Guild', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
   name: {
-    type: String,
-    required: [true, 'A guild must have a name'],
-    unique: true,
-    trim: true,
-    maxlength: [50, 'Guild name cannot exceed 50 characters']
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
   },
   description: {
-    type: String,
-    required: [true, 'Describe your guild, master'],
-    maxlength: [500, 'Description cannot exceed 500 characters']
+    type: DataTypes.TEXT,
+    allowNull: false
   },
-  leader: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  leaderId: {
+    type: DataTypes.UUID,
+    allowNull: false
   },
-  members: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
+  members: {
+    type: DataTypes.JSON,
+    defaultValue: []
+  },
   level: {
-    type: Number,
-    default: 1
+    type: DataTypes.INTEGER,
+    defaultValue: 1
   },
   experiencePoints: {
-    type: Number,
-    default: 0
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   }
+  // Members will be handled via Association or JSON if lazy. 
+  // For now, let's rely on User.guildId association.
 });
 
-module.exports = mongoose.model('Guild', guildSchema);
+module.exports = Guild;

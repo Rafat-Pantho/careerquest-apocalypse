@@ -3,103 +3,84 @@
  * CareerQuest: The Apocalypse
  * Quest Model - The Job Board of Destiny
  * ═══════════════════════════════════════════════════════════════════════════════
- * 
- * Represents job listings and internships.
- * - Internships = "Tutorial Levels"
- * - Full-time Jobs = "Raid Bosses"
- * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
 const QUEST_TYPES = {
-  TUTORIAL: 'Tutorial Level', // Internship
-  RAID_BOSS: 'Raid Boss',     // Full-time Job
-  SIDE_QUEST: 'Side Quest',   // Part-time / Contract
-  DAILY_GRIND: 'Daily Grind'  // Freelance
+  TUTORIAL: 'Tutorial Level',
+  RAID_BOSS: 'Raid Boss',
+  SIDE_QUEST: 'Side Quest',
+  DAILY_GRIND: 'Daily Grind'
 };
 
 const QUEST_DIFFICULTY = {
-  NOVICE: 'Novice',       // Entry Level
-  ADEPT: 'Adept',         // Mid Level
-  VETERAN: 'Veteran',     // Senior Level
-  LEGENDARY: 'Legendary'  // Lead / Principal
+  NOVICE: 'Novice',
+  ADEPT: 'Adept',
+  VETERAN: 'Veteran',
+  LEGENDARY: 'Legendary'
 };
 
-const questSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, 'A quest must have a name!'],
-    trim: true
+const Quest = sequelize.define('Quest', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
-  guild: { // Company Name
-    type: String,
-    required: [true, 'Which guild is offering this quest?'],
-    trim: true
+  title: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  guild: {
+    type: DataTypes.STRING,
+    allowNull: false
   },
   type: {
-    type: String,
-    enum: Object.values(QUEST_TYPES),
-    default: QUEST_TYPES.TUTORIAL
+    type: DataTypes.STRING,
+    defaultValue: QUEST_TYPES.TUTORIAL
   },
   difficulty: {
-    type: String,
-    enum: Object.values(QUEST_DIFFICULTY),
-    default: QUEST_DIFFICULTY.NOVICE
+    type: DataTypes.STRING,
+    defaultValue: QUEST_DIFFICULTY.NOVICE
   },
-  description: { // The Lore
-    type: String,
-    required: [true, 'Describe the challenge ahead!']
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: false
   },
-  requirements: [{ // Prerequisites
-    type: String
-  }],
+  requirements: {
+    type: DataTypes.JSON, // Array of strings
+    defaultValue: []
+  },
   rewards: {
-    gold: { // Salary/Stipend
-      type: String, // String to allow ranges like "10k-15k"
-      required: true
-    },
-    xp: { // Experience Points (Arbitrary value based on difficulty)
-      type: Number,
-      default: 100
-    },
-    perks: [{ // Benefits
-      type: String
-    }]
+    type: DataTypes.JSON, // { gold, xp, perks }
+    defaultValue: {
+      gold: '0',
+      xp: 100,
+      perks: []
+    }
   },
   location: {
-    type: String,
-    default: 'Remote Realm'
+    type: DataTypes.STRING,
+    defaultValue: 'Remote Realm'
   },
+  // Foreign Key for poster
   postedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    type: DataTypes.UUID,
+    allowNull: false
   },
-  applicants: [{
-    hero: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    status: {
-      type: String,
-      enum: ['Pending', 'Accepted', 'Rejected'],
-      default: 'Pending'
-    },
-    appliedAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  // Applicants as JSON array for now to preserve structure
+  applicants: {
+    type: DataTypes.JSON,
+    defaultValue: []
+  },
   deadline: {
-    type: Date
+    type: DataTypes.DATE
   },
   isActive: {
-    type: Boolean,
-    default: true
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   }
-}, {
-  timestamps: true
 });
 
-module.exports = mongoose.model('Quest', questSchema);
+module.exports = Quest;

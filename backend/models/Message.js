@@ -1,24 +1,27 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const messageSchema = new mongoose.Schema({
-  sender: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+const Message = sequelize.define('Message', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  senderId: {
+    type: DataTypes.UUID,
+    allowNull: false
   },
   content: {
-    type: String,
-    required: [true, 'Message cannot be empty']
+    type: DataTypes.TEXT,
+    allowNull: false
   },
   room: {
-    type: String,
-    default: 'tavern'
-    // Can be 'tavern', guild ID, or DM room ID (e.g., 'dm_userId1_userId2')
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.STRING,
+    defaultValue: 'tavern'
   }
+}, {
+  timestamps: true,
+  updatedAt: false // Only createdAt is needed
 });
 
-module.exports = mongoose.model('Message', messageSchema);
+module.exports = Message;

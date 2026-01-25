@@ -1,5 +1,21 @@
-const Guild = require('../models/Guild');
-const User = require('../models/User');
+const { Guild, User } = require('../models');
+
+// Helper to manually populate members from JSON
+const populateMembers = async (guild) => {
+  if (!guild) return null;
+  const guildData = guild.toJSON();
+  if (guildData.members && guildData.members.length > 0) {
+    const memberIds = guildData.members;
+    const members = await User.findAll({
+      where: { id: memberIds },
+      attributes: ['id', 'heroName', 'heroClass', 'avatar', 'level']
+    });
+
+    // Sort or map? Usually just replace the list of IDs with objects
+    guildData.members = members.map(m => m.toJSON());
+  }
+  return guildData;
+};
 
 // @desc    Create a new guild
 // @route   POST /api/guilds
@@ -9,8 +25,8 @@ exports.createGuild = async (req, res) => {
     const { name, description } = req.body;
 
     // Check if user is already in a guild
-    const user = await User.findById(req.user.id);
-    if (user.guild) {
+    const user = await User.findByPk(req.user.id);
+    if (user.guildId) {
       return res.status(400).json({
         success: false,
         message: 'You are already pledged to a guild!'
@@ -20,12 +36,12 @@ exports.createGuild = async (req, res) => {
     const guild = await Guild.create({
       name,
       description,
-      leader: req.user.id,
+      leaderId: req.user.id,
       members: [req.user.id]
     });
 
     // Update user
-    user.guild = guild._id;
+    user.guildId = guild.id;
     await user.save();
 
     res.status(201).json({
@@ -46,9 +62,14 @@ exports.createGuild = async (req, res) => {
 // @access  Public
 exports.getAllGuilds = async (req, res) => {
   try {
-    const guilds = await Guild.find()
-      .populate('leader', 'heroName heroClass')
-      .select('name description members level experiencePoints');
+    const guilds = await Guild.findAll({
+      include: [{
+        model: User,
+        as: 'leader',
+        attributes: ['heroName', 'heroClass']
+      }],
+      attributes: ['id', 'name', 'description', 'members', 'level', 'experiencePoints']
+    });
 
     res.status(200).json({
       success: true,
@@ -69,9 +90,13 @@ exports.getAllGuilds = async (req, res) => {
 // @access  Public
 exports.getGuildById = async (req, res) => {
   try {
-    const guild = await Guild.findById(req.params.id)
-      .populate('leader', 'heroName heroClass avatar')
-      .populate('members', 'heroName heroClass avatar level');
+    const guild = await Guild.findByPk(req.params.id, {
+      include: [{
+        model: User,
+        as: 'leader',
+        attributes: ['heroName', 'heroClass', 'avatar']
+      }]
+    });
 
     if (!guild) {
       return res.status(404).json({
@@ -80,9 +105,11 @@ exports.getGuildById = async (req, res) => {
       });
     }
 
+    const guildData = await populateMembers(guild);
+
     res.status(200).json({
       success: true,
-      data: guild
+      data: guildData
     });
   } catch (error) {
     res.status(500).json({
@@ -98,23 +125,25 @@ exports.getGuildById = async (req, res) => {
 // @access  Private
 exports.joinGuild = async (req, res) => {
   try {
-    const guild = await Guild.findById(req.params.id);
-    const user = await User.findById(req.user.id);
+    const guild = await Guild.findByPk(req.params.id);
+    const user = await User.findByPk(req.user.id);
 
     if (!guild) {
       return res.status(404).json({ success: false, message: 'Guild not found' });
     }
 
-    if (user.guild) {
+    if (user.guildId) {
       return res.status(400).json({ success: false, message: 'You are already in a guild!' });
     }
 
-    // Add to guild
-    guild.members.push(user._id);
+    // Add to guild members
+    const members = guild.members || [];
+    members.push(user.id);
+    guild.members = [...members];
     await guild.save();
 
     // Update user
-    user.guild = guild._id;
+    user.guildId = guild.id;
     await user.save();
 
     res.status(200).json({

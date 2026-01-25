@@ -1,18 +1,50 @@
-const Bounty = require('../models/Bounty');
+const { Bounty, User } = require('../models');
+
+// Helper to manually populate applicants from JSON
+const populateApplicants = async (bounty) => {
+  if (!bounty) return null;
+  const bountyData = bounty.toJSON();
+  if (bountyData.applicants && bountyData.applicants.length > 0) {
+    const mercenaryIds = bountyData.applicants.map(app => app.mercenary).filter(id => id);
+    const mercenaries = await User.findAll({
+      where: { id: mercenaryIds },
+      attributes: ['id', 'heroName', 'avatar', 'heroClass']
+    });
+
+    bountyData.applicants = bountyData.applicants.map(app => {
+      const mercenary = mercenaries.find(m => m.id === app.mercenary);
+      return { ...app, mercenary: mercenary || app.mercenary };
+    });
+  }
+  return bountyData;
+};
 
 // @desc    Get all bounties
 // @route   GET /api/bounties
 // @access  Public
 exports.getAllBounties = async (req, res) => {
   try {
-    const bounties = await Bounty.find({ status: 'Open' })
-      .populate('postedBy', 'heroName avatar heroClass')
-      .sort({ createdAt: -1 });
+    const bounties = await Bounty.findAll({
+      where: { status: 'Open' },
+      include: [{
+        model: User,
+        as: 'poster',
+        attributes: ['heroName', 'avatar', 'heroClass']
+      }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const validBounties = bounties.map(b => {
+      const bJson = b.toJSON();
+      bJson.postedBy = bJson.poster;
+      delete bJson.poster;
+      return bJson;
+    });
 
     res.status(200).json({
       success: true,
-      count: bounties.length,
-      data: bounties
+      count: validBounties.length,
+      data: validBounties
     });
   } catch (error) {
     res.status(500).json({
@@ -28,9 +60,13 @@ exports.getAllBounties = async (req, res) => {
 // @access  Public
 exports.getBountyById = async (req, res) => {
   try {
-    const bounty = await Bounty.findById(req.params.id)
-      .populate('postedBy', 'heroName avatar heroClass')
-      .populate('applicants.mercenary', 'heroName avatar heroClass');
+    const bounty = await Bounty.findByPk(req.params.id, {
+      include: [{
+        model: User,
+        as: 'poster',
+        attributes: ['heroName', 'avatar', 'heroClass']
+      }]
+    });
 
     if (!bounty) {
       return res.status(404).json({
@@ -39,9 +75,13 @@ exports.getBountyById = async (req, res) => {
       });
     }
 
+    const bountyParam = await populateApplicants(bounty);
+    bountyParam.postedBy = bountyParam.poster;
+    delete bountyParam.poster;
+
     res.status(200).json({
       success: true,
-      data: bounty
+      data: bountyParam
     });
   } catch (error) {
     res.status(500).json({
@@ -57,7 +97,7 @@ exports.getBountyById = async (req, res) => {
 // @access  Private
 exports.createBounty = async (req, res) => {
   try {
-    req.body.postedBy = req.user.id;
+    req.body.postedBy = req.user.id; // ensure correct FK
 
     const bounty = await Bounty.create(req.body);
 
@@ -81,7 +121,7 @@ exports.createBounty = async (req, res) => {
 exports.applyForBounty = async (req, res) => {
   try {
     const { message } = req.body;
-    const bounty = await Bounty.findById(req.params.id);
+    const bounty = await Bounty.findByPk(req.params.id);
 
     if (!bounty) {
       return res.status(404).json({
@@ -90,9 +130,11 @@ exports.applyForBounty = async (req, res) => {
       });
     }
 
+    const applicants = bounty.applicants || [];
+
     // Check if already applied
-    const alreadyApplied = bounty.applicants.find(
-      app => app.mercenary.toString() === req.user.id
+    const alreadyApplied = applicants.find(
+      app => app.mercenary === req.user.id
     );
 
     if (alreadyApplied) {
@@ -102,11 +144,13 @@ exports.applyForBounty = async (req, res) => {
       });
     }
 
-    bounty.applicants.push({
+    applicants.push({
       mercenary: req.user.id,
-      message: message || "I am ready to serve."
+      message: message || "I am ready to serve.",
+      appliedAt: new Date()
     });
 
+    bounty.applicants = [...applicants];
     await bounty.save();
 
     res.status(200).json({

@@ -1,15 +1,5 @@
-/**
- * ═══════════════════════════════════════════════════════════════════════════════
- * CareerQuest: The Apocalypse
- * Barter Model - The Skill Exchange Tavern
- * ═══════════════════════════════════════════════════════════════════════════════
- * 
- * Represents peer-to-peer skill trading.
- * "I will teach you the dark arts of Video Editing if you teach me Calculus."
- * ═══════════════════════════════════════════════════════════════════════════════
- */
-
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
 const BARTER_STATUS = {
   OPEN: 'Open',
@@ -17,49 +7,32 @@ const BARTER_STATUS = {
   CLOSED: 'Closed'
 };
 
-const barterSchema = new mongoose.Schema({
-  offering: { // What I can teach
-    skill: {
-      type: String,
-      required: true
-    },
-    description: String
+const Barter = sequelize.define('Barter', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
-  seeking: { // What I want to learn
-    skill: {
-      type: String,
-      required: true
-    },
-    description: String
+  offering: {
+    type: DataTypes.JSON, // { skill, description }
+    allowNull: false
   },
-  merchant: { // The user posting the barter
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  seeking: {
+    type: DataTypes.JSON, // { skill, description }
+    allowNull: false
   },
-  offers: [{ // Other users proposing a trade
-    trader: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    message: String,
-    status: {
-      type: String,
-      enum: ['Pending', 'Accepted', 'Rejected'],
-      default: 'Pending'
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  merchantId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
+  offers: {
+    type: DataTypes.JSON, // Array of { trader, message, status, createdAt }
+    defaultValue: []
+  },
   status: {
-    type: String,
-    enum: Object.values(BARTER_STATUS),
-    default: BARTER_STATUS.OPEN
+    type: DataTypes.STRING,
+    defaultValue: BARTER_STATUS.OPEN
   }
-}, {
-  timestamps: true
 });
 
-module.exports = mongoose.model('Barter', barterSchema);
+module.exports = Barter;

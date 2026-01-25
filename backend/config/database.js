@@ -1,43 +1,51 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * CareerQuest: The Apocalypse
- * Database Connection - The Ancient Scrolls Vault
+ * Database Connection - The MySQL Armory
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-const mongoose = require('mongoose');
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
+
+// Initialize Sequelize with MySQL connection details
+const sequelize = new Sequelize(
+  process.env.MYSQL_DATABASE || 'careerquest_apocalypse',
+  process.env.MYSQL_USER || 'root',
+  process.env.MYSQL_PASSWORD || '',
+  {
+    host: process.env.MYSQL_HOST || 'localhost',
+    dialect: 'mysql',
+    logging: false, // Set to console.log to see SQL queries
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
+  }
+);
 
 /**
- * Connect to MongoDB - Opening the Ancient Vault
+ * Connect to MySQL - Opening the Armory Gates
  * @returns {Promise<void>}
  */
 const connectDatabase = async () => {
     try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      // Mongoose 6+ no longer needs these options, but keeping for clarity
-    });
+    await sequelize.authenticate();
 
     console.log(`
     ╔═══════════════════════════════════════════════════════════════╗
-    ║  📜 ANCIENT DATABASE SCROLLS CONNECTED SUCCESSFULLY! 📜      ║
+    ║  ⚔️ MYSQL ARMORY CONNECTED SUCCESSFULLY! ⚔️                   ║
     ╠═══════════════════════════════════════════════════════════════╣
-    ║  Host: ${conn.connection.host.padEnd(52)}                     ║
-    ║  Database: ${conn.connection.name.padEnd(48)}                 ║
+    ║  Host: ${String(process.env.MYSQL_HOST || 'localhost').padEnd(52)}                 ║
+    ║  Database: ${String(process.env.MYSQL_DATABASE || 'careerquest_apocalypse').padEnd(48)}             ║
     ╚═══════════════════════════════════════════════════════════════╝
     `);
-
-    // Handle connection events
-    mongoose.connection.on('error', (err) => {
-      console.error('⚔️ Database connection error:', err.message);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️ Lost connection to the Ancient Vault!');
-    });
-
-    mongoose.connection.on('reconnected', () => {
-      console.log('🔄 Reconnected to the Ancient Vault!');
-    });
+    
+    // Sync models
+    // await sequelize.sync({ alter: true }); // This helps update tables if models change
+    // console.log('   🛡️  Tables Synchronized');
 
   } catch (error) {
     console.error(`
@@ -51,17 +59,4 @@ const connectDatabase = async () => {
   }
 };
 
-/**
- * Gracefully close database connection
- */
-const disconnectDatabase = async () => {
-  try {
-    await mongoose.connection.close();
-    console.log('📜 Ancient Vault sealed safely.');
-  } catch (error) {
-    console.error('Error closing database connection:', error.message);
-    process.exit(1);
-  }
-};
-
-module.exports = { connectDatabase, disconnectDatabase };
+module.exports = { sequelize, connectDatabase };

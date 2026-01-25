@@ -1,13 +1,19 @@
-const Barter = require('../models/Barter');
+const { Barter, User } = require('../models');
 
 // @desc    Get all barters
 // @route   GET /api/barter
 // @access  Public
 exports.getAllBarters = async (req, res) => {
   try {
-    const barters = await Barter.find({ status: 'Open' })
-      .populate('merchant', 'heroName avatar heroClass')
-      .sort({ createdAt: -1 });
+    const barters = await Barter.findAll({
+      where: { status: 'Open' },
+      include: [{
+        model: User,
+        as: 'merchant',
+        attributes: ['heroName', 'avatar', 'heroClass']
+      }],
+      order: [['createdAt', 'DESC']]
+    });
 
     res.status(200).json({
       success: true,
@@ -28,7 +34,7 @@ exports.getAllBarters = async (req, res) => {
 // @access  Private
 exports.createBarter = async (req, res) => {
   try {
-    req.body.merchant = req.user.id;
+    req.body.merchantId = req.user.id;
 
     const barter = await Barter.create(req.body);
 
@@ -52,7 +58,7 @@ exports.createBarter = async (req, res) => {
 exports.makeOffer = async (req, res) => {
   try {
     const { message } = req.body;
-    const barter = await Barter.findById(req.params.id);
+    const barter = await Barter.findByPk(req.params.id);
 
     if (!barter) {
       return res.status(404).json({
@@ -61,18 +67,21 @@ exports.makeOffer = async (req, res) => {
       });
     }
 
-    if (barter.merchant.toString() === req.user.id) {
+    if (barter.merchantId === req.user.id) {
       return res.status(400).json({
         success: false,
         message: 'You cannot trade with yourself!'
       });
     }
 
-    barter.offers.push({
+    const offers = barter.offers || [];
+    offers.push({
       trader: req.user.id,
-      message: message || "I accept your terms."
+      message: message || "I accept your terms.",
+      createdAt: new Date()
     });
 
+    barter.offers = [...offers];
     barter.status = 'Negotiating';
     await barter.save();
 

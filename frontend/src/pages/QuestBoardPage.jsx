@@ -8,7 +8,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import CreateQuestForm from '../components/forms/CreateQuestForm';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const SurvivalMeter = ({ probability, size = 'md' }) => {
   const getColor = () => {

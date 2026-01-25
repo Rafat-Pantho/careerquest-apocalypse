@@ -3,20 +3,13 @@
  * CareerQuest: The Apocalypse
  * CV Controller - The Character Sheet Transmutation Chamber
  * ═══════════════════════════════════════════════════════════════════════════════
- * 
- * Transforms a Hero's fantasy stats into corporate-ready PDF documents.
- * The magic that bridges two worlds.
- * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-const User = require('../models/User');
+const { User } = require('../models');
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
 
-/**
- * Map fantasy terms back to corporate speak
- */
 const translateToCorporate = {
   heroClass: {
     'Code Wizard': 'Software Developer',
@@ -45,7 +38,7 @@ const translateToCorporate = {
 // @access  Private
 exports.getCVData = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findByPk(req.user.id);
 
     if (!user) {
       return res.status(404).json({
@@ -54,29 +47,31 @@ exports.getCVData = async (req, res) => {
       });
     }
 
-    // Transform the data for CV display
+    const socialLinks = user.socialLinks || {};
+    const location = user.location || {};
+
     const cvData = {
       personalInfo: {
         name: `${user.firstName} ${user.lastName}`,
         heroName: user.heroName,
         email: user.email,
         phone: user.phone || '',
-        location: user.location?.city ? `${user.location.city}, ${user.location.country}` : '',
-        linkedIn: user.socialLinks?.linkedIn || '',
-        github: user.socialLinks?.github || '',
-        portfolio: user.socialLinks?.portfolio || ''
+        location: location.city ? `${location.city}, ${location.country}` : '',
+        linkedIn: socialLinks.linkedIn || '',
+        github: socialLinks.github || '',
+        portfolio: socialLinks.portfolio || ''
       },
       summary: user.heroicSummary || '',
       professionalTitle: translateToCorporate.heroClass[user.heroClass] || user.heroClass,
-      skills: user.specialAttacks?.map(skill => ({
+      skills: (user.specialAttacks || []).map(skill => ({
         name: skill.realSkillName || skill.name,
         fantasyName: skill.name,
         level: skill.powerLevel,
         type: skill.attackType,
         years: skill.yearsWielded,
         certified: skill.isEnchanted
-      })) || [],
-      experience: user.battleHistory?.map(exp => ({
+      })),
+      experience: (user.battleHistory || []).map(exp => ({
         company: exp.campaignName,
         role: exp.rank,
         department: exp.battalion,
@@ -86,8 +81,8 @@ exports.getCVData = async (req, res) => {
         current: exp.stillFighting,
         achievements: exp.warStories || [],
         technologies: exp.weaponsUsed || []
-      })) || [],
-      education: user.trainingGrounds?.map(edu => ({
+      })),
+      education: (user.trainingGrounds || []).map(edu => ({
         institution: edu.academyName,
         degree: edu.scrollObtained,
         field: edu.disciplineMastered,
@@ -96,19 +91,19 @@ exports.getCVData = async (req, res) => {
         current: edu.stillTraining,
         gpa: edu.honorScore,
         achievements: edu.achievements || []
-      })) || [],
-      projects: user.epicQuests?.map(proj => ({
+      })),
+      projects: (user.epicQuests || []).map(proj => ({
         name: proj.questName,
         description: proj.questDescription,
         url: proj.proofOfVictory,
         technologies: proj.weaponsForged || []
-      })) || [],
-      certifications: user.enchantments?.map(cert => ({
+      })),
+      certifications: (user.enchantments || []).map(cert => ({
         name: cert.enchantmentName,
         issuer: cert.grantedBy,
         date: cert.dateGranted,
         url: cert.proofLink
-      })) || []
+      }))
     };
 
     res.status(200).json({
@@ -140,7 +135,7 @@ exports.updateCVData = async (req, res) => {
       certifications
     } = req.body;
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findByPk(req.user.id);
 
     if (!user) {
       return res.status(404).json({
@@ -152,17 +147,25 @@ exports.updateCVData = async (req, res) => {
     // Update personal info
     if (personalInfo) {
       if (personalInfo.phone) user.phone = personalInfo.phone;
+
       if (personalInfo.location) {
         const locationParts = personalInfo.location.split(',').map(s => s.trim());
+        const currentLoc = user.location || {};
         user.location = {
+          ...currentLoc,
           city: locationParts[0] || '',
           country: locationParts[1] || ''
         };
       }
-      if (!user.socialLinks) user.socialLinks = {};
-      if (personalInfo.linkedIn) user.socialLinks.linkedIn = personalInfo.linkedIn;
-      if (personalInfo.github) user.socialLinks.github = personalInfo.github;
-      if (personalInfo.portfolio) user.socialLinks.portfolio = personalInfo.portfolio;
+
+      const currentLinks = user.socialLinks || {};
+      const newLinks = { ...currentLinks };
+
+      if (personalInfo.linkedIn) newLinks.linkedIn = personalInfo.linkedIn;
+      if (personalInfo.github) newLinks.github = personalInfo.github;
+      if (personalInfo.portfolio) newLinks.portfolio = personalInfo.portfolio;
+
+      user.socialLinks = newLinks;
     }
 
     // Update summary
@@ -252,7 +255,7 @@ exports.updateCVData = async (req, res) => {
 // @access  Private
 exports.generatePDF = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findByPk(req.user.id);
 
     if (!user) {
       return res.status(404).json({
@@ -278,60 +281,62 @@ exports.generatePDF = async (req, res) => {
 
     // Header with name
     doc.fontSize(28)
-       .fillColor(primaryColor)
-       .text(`${user.firstName} ${user.lastName}`, { align: 'center' });
+      .fillColor(primaryColor)
+      .text(`${user.firstName} ${user.lastName}`, { align: 'center' });
 
     // Professional title
     const title = translateToCorporate.heroClass[user.heroClass] || user.heroClass;
     doc.fontSize(14)
-       .fillColor(lightGray)
-       .text(title, { align: 'center' });
+      .fillColor(lightGray)
+      .text(title, { align: 'center' });
 
     doc.moveDown(0.5);
 
     // Contact info line
+    const location = user.location || {};
     const contactParts = [];
     if (user.email) contactParts.push(user.email);
     if (user.phone) contactParts.push(user.phone);
-    if (user.location?.city) contactParts.push(`${user.location.city}, ${user.location.country || ''}`);
-    
+    if (location.city) contactParts.push(`${location.city}, ${location.country || ''}`);
+
     doc.fontSize(10)
-       .fillColor(textColor)
-       .text(contactParts.join(' • '), { align: 'center' });
+      .fillColor(textColor)
+      .text(contactParts.join(' • '), { align: 'center' });
 
     // Social links
+    const socialLinks = user.socialLinks || {};
     const socialParts = [];
-    if (user.socialLinks?.linkedIn) socialParts.push(`LinkedIn: ${user.socialLinks.linkedIn}`);
-    if (user.socialLinks?.github) socialParts.push(`GitHub: ${user.socialLinks.github}`);
-    if (user.socialLinks?.portfolio) socialParts.push(`Portfolio: ${user.socialLinks.portfolio}`);
-    
+    if (socialLinks.linkedIn) socialParts.push(`LinkedIn: ${socialLinks.linkedIn}`);
+    if (socialLinks.github) socialParts.push(`GitHub: ${socialLinks.github}`);
+    if (socialLinks.portfolio) socialParts.push(`Portfolio: ${socialLinks.portfolio}`);
+
     if (socialParts.length > 0) {
       doc.fontSize(9)
-         .fillColor(lightGray)
-         .text(socialParts.join(' | '), { align: 'center' });
+        .fillColor(lightGray)
+        .text(socialParts.join(' | '), { align: 'center' });
     }
 
     doc.moveDown();
 
     // Horizontal line
     doc.moveTo(50, doc.y)
-       .lineTo(545, doc.y)
-       .strokeColor(primaryColor)
-       .lineWidth(2)
-       .stroke();
+      .lineTo(545, doc.y)
+      .strokeColor(primaryColor)
+      .lineWidth(2)
+      .stroke();
 
     doc.moveDown();
 
     // Helper function for section headers
     const addSectionHeader = (title) => {
       doc.fontSize(14)
-         .fillColor(primaryColor)
-         .text(title.toUpperCase(), { underline: false });
+        .fillColor(primaryColor)
+        .text(title.toUpperCase(), { underline: false });
       doc.moveTo(50, doc.y + 2)
-         .lineTo(545, doc.y + 2)
-         .strokeColor('#e5e7eb')
-         .lineWidth(1)
-         .stroke();
+        .lineTo(545, doc.y + 2)
+        .strokeColor('#e5e7eb')
+        .lineWidth(1)
+        .stroke();
       doc.moveDown(0.5);
     };
 
@@ -339,18 +344,19 @@ exports.generatePDF = async (req, res) => {
     if (user.heroicSummary) {
       addSectionHeader('Professional Summary');
       doc.fontSize(10)
-         .fillColor(textColor)
-         .text(user.heroicSummary, { align: 'justify' });
+        .fillColor(textColor)
+        .text(user.heroicSummary, { align: 'justify' });
       doc.moveDown();
     }
 
     // Skills
-    if (user.specialAttacks && user.specialAttacks.length > 0) {
+    const specialAttacks = user.specialAttacks || [];
+    if (specialAttacks.length > 0) {
       addSectionHeader('Skills');
-      
+
       // Group skills by type
       const skillsByType = {};
-      user.specialAttacks.forEach(skill => {
+      specialAttacks.forEach(skill => {
         const type = translateToCorporate.attackType[skill.attackType] || 'Other';
         if (!skillsByType[type]) skillsByType[type] = [];
         skillsByType[type].push(skill.realSkillName || skill.name);
@@ -358,121 +364,121 @@ exports.generatePDF = async (req, res) => {
 
       Object.keys(skillsByType).forEach(type => {
         doc.fontSize(10)
-           .fillColor(textColor)
-           .text(`${type}: `, { continued: true })
-           .fillColor(lightGray)
-           .text(skillsByType[type].join(', '));
+          .fillColor(textColor)
+          .text(`${type}: `, { continued: true })
+          .fillColor(lightGray)
+          .text(skillsByType[type].join(', '));
       });
       doc.moveDown();
     }
 
     // Experience
-    if (user.battleHistory && user.battleHistory.length > 0) {
+    const battleHistory = user.battleHistory || [];
+    if (battleHistory.length > 0) {
       addSectionHeader('Professional Experience');
-      
-      user.battleHistory.forEach((exp, index) => {
-        // Company and role
+
+      battleHistory.forEach((exp, index) => {
         doc.fontSize(11)
-           .fillColor(textColor)
-           .text(exp.rank, { continued: true })
-           .fillColor(lightGray)
-           .text(` at ${exp.campaignName}`);
-        
-        // Date and location
+          .fillColor(textColor)
+          .text(exp.rank, { continued: true })
+          .fillColor(lightGray)
+          .text(` at ${exp.campaignName}`);
+
         const startDate = exp.campaignStart ? new Date(exp.campaignStart).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
         const endDate = exp.stillFighting ? 'Present' : (exp.campaignEnd ? new Date(exp.campaignEnd).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '');
-        
+
         doc.fontSize(9)
-           .fillColor(lightGray)
-           .text(`${startDate} - ${endDate}${exp.battleground ? ' | ' + exp.battleground : ''}`);
-        
-        // Achievements
+          .fillColor(lightGray)
+          .text(`${startDate} - ${endDate}${exp.battleground ? ' | ' + exp.battleground : ''}`);
+
         if (exp.warStories && exp.warStories.length > 0) {
           exp.warStories.forEach(story => {
             doc.fontSize(10)
-               .fillColor(textColor)
-               .text(`• ${story}`, { indent: 15 });
+              .fillColor(textColor)
+              .text(`• ${story}`, { indent: 15 });
           });
         }
-        
-        if (index < user.battleHistory.length - 1) doc.moveDown(0.5);
+
+        if (index < battleHistory.length - 1) doc.moveDown(0.5);
       });
       doc.moveDown();
     }
 
     // Education
-    if (user.trainingGrounds && user.trainingGrounds.length > 0) {
+    const trainingGrounds = user.trainingGrounds || [];
+    if (trainingGrounds.length > 0) {
       addSectionHeader('Education');
-      
-      user.trainingGrounds.forEach((edu, index) => {
+
+      trainingGrounds.forEach((edu, index) => {
         doc.fontSize(11)
-           .fillColor(textColor)
-           .text(edu.scrollObtained, { continued: true })
-           .text(` in ${edu.disciplineMastered}`);
-        
+          .fillColor(textColor)
+          .text(edu.scrollObtained, { continued: true })
+          .text(` in ${edu.disciplineMastered}`);
+
         doc.fontSize(10)
-           .fillColor(lightGray)
-           .text(edu.academyName);
-        
+          .fillColor(lightGray)
+          .text(edu.academyName);
+
         const startDate = edu.trainingStart ? new Date(edu.trainingStart).getFullYear() : '';
         const endDate = edu.stillTraining ? 'Present' : (edu.trainingEnd ? new Date(edu.trainingEnd).getFullYear() : '');
-        
+
         doc.fontSize(9)
-           .fillColor(lightGray)
-           .text(`${startDate} - ${endDate}${edu.honorScore ? ' | GPA: ' + edu.honorScore : ''}`);
-        
-        if (index < user.trainingGrounds.length - 1) doc.moveDown(0.5);
+          .fillColor(lightGray)
+          .text(`${startDate} - ${endDate}${edu.honorScore ? ' | GPA: ' + edu.honorScore : ''}`);
+
+        if (index < trainingGrounds.length - 1) doc.moveDown(0.5);
       });
       doc.moveDown();
     }
 
     // Projects
-    if (user.epicQuests && user.epicQuests.length > 0) {
+    const epicQuests = user.epicQuests || [];
+    if (epicQuests.length > 0) {
       addSectionHeader('Projects');
-      
-      user.epicQuests.forEach((proj, index) => {
+
+      epicQuests.forEach((proj, index) => {
         doc.fontSize(11)
-           .fillColor(textColor)
-           .text(proj.questName);
-        
+          .fillColor(textColor)
+          .text(proj.questName);
+
         if (proj.questDescription) {
           doc.fontSize(10)
-             .fillColor(lightGray)
-             .text(proj.questDescription);
+            .fillColor(lightGray)
+            .text(proj.questDescription);
         }
-        
+
         if (proj.weaponsForged && proj.weaponsForged.length > 0) {
           doc.fontSize(9)
-             .fillColor(primaryColor)
-             .text(`Technologies: ${proj.weaponsForged.join(', ')}`);
+            .fillColor(primaryColor)
+            .text(`Technologies: ${proj.weaponsForged.join(', ')}`);
         }
-        
+
         if (proj.proofOfVictory) {
           doc.fontSize(9)
-             .fillColor(primaryColor)
-             .text(proj.proofOfVictory, { link: proj.proofOfVictory });
+            .fillColor(primaryColor)
+            .text(proj.proofOfVictory, { link: proj.proofOfVictory });
         }
-        
-        if (index < user.epicQuests.length - 1) doc.moveDown(0.5);
+
+        if (index < epicQuests.length - 1) doc.moveDown(0.5);
       });
       doc.moveDown();
     }
 
     // Certifications
-    if (user.enchantments && user.enchantments.length > 0) {
+    const enchantments = user.enchantments || [];
+    if (enchantments.length > 0) {
       addSectionHeader('Certifications');
-      
-      user.enchantments.forEach(cert => {
+
+      enchantments.forEach(cert => {
         const dateStr = cert.dateGranted ? new Date(cert.dateGranted).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
         doc.fontSize(10)
-           .fillColor(textColor)
-           .text(`• ${cert.enchantmentName}`, { continued: true })
-           .fillColor(lightGray)
-           .text(` - ${cert.grantedBy}${dateStr ? ', ' + dateStr : ''}`);
+          .fillColor(textColor)
+          .text(`• ${cert.enchantmentName}`, { continued: true })
+          .fillColor(lightGray)
+          .text(` - ${cert.grantedBy}${dateStr ? ', ' + dateStr : ''}`);
       });
     }
 
-    // Finalize PDF
     doc.end();
 
   } catch (error) {
@@ -490,7 +496,7 @@ exports.generatePDF = async (req, res) => {
 // @access  Private
 exports.getCVPreview = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findByPk(req.user.id);
 
     if (!user) {
       return res.status(404).json({
@@ -500,6 +506,8 @@ exports.getCVPreview = async (req, res) => {
     }
 
     const title = translateToCorporate.heroClass[user.heroClass] || user.heroClass;
+    const location = user.location || {};
+    const socialLinks = user.socialLinks || {};
 
     res.status(200).json({
       success: true,
@@ -508,14 +516,14 @@ exports.getCVPreview = async (req, res) => {
         title,
         email: user.email,
         phone: user.phone,
-        location: user.location?.city ? `${user.location.city}, ${user.location.country}` : '',
+        location: location.city ? `${location.city}, ${location.country}` : '',
         summary: user.heroicSummary,
         skills: user.specialAttacks,
         experience: user.battleHistory,
         education: user.trainingGrounds,
         projects: user.epicQuests,
         certifications: user.enchantments,
-        socialLinks: user.socialLinks
+        socialLinks: socialLinks
       }
     });
   } catch (error) {
