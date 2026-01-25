@@ -1,24 +1,34 @@
 const Mentorship = require('../models/Mentorship');
 const User = require('../models/User');
+const { Op } = require('sequelize');
 
 // @desc    Get all available mentors (Elders)
 // @route   GET /api/mentorship/elders
 // @access  Public
 exports.getElders = async (req, res) => {
   try {
-    const elders = await User.find({ role: 'elder' })
-      .select('heroName heroClass avatar specialAttacks heroicSummary battleHistory trainingGrounds createdAt');
+    const elders = await User.findAll({
+      where: { role: 'elder' },
+      attributes: ['heroName', 'heroClass', 'avatar', 'specialAttacks', 'heroicSummary', 'battleHistory', 'trainingGrounds', 'createdAt']
+    });
 
     // Add some computed fields for each elder
-    const eldersWithStats = elders.map(elder => ({
-      ...elder.toObject(),
-      skillCount: elder.specialAttacks?.length || 0,
-      experienceYears: elder.battleHistory?.reduce((total, exp) => {
-        // Rough calculation based on experience entries
-        return total + 2;
-      }, 0) || 0,
-      specialties: elder.specialAttacks?.slice(0, 3).map(s => s.attackName) || []
-    }));
+    const eldersWithStats = elders.map(elder => {
+      // JSON fields need to be handled if they are not automatically parsed? 
+      // Sequelize with MySQL usually parses JSON columns automatically to objects.
+      const specialAttacks = elder.specialAttacks || [];
+      const battleHistory = elder.battleHistory || [];
+
+      return {
+        ...elder.toJSON(),
+        skillCount: specialAttacks.length || 0,
+        experienceYears: battleHistory.reduce((total, exp) => {
+          // rough calculation
+          return total + 2;
+        }, 0) || 0,
+        specialties: specialAttacks.slice(0, 3).map(s => s.attackName) || []
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -26,6 +36,7 @@ exports.getElders = async (req, res) => {
       data: eldersWithStats
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       success: false,
       message: 'The Elders are silent.',
@@ -42,7 +53,7 @@ exports.summonElder = async (req, res) => {
     const { elderId, incantation, topic, goals } = req.body;
 
     // Check if elder exists
-    const elder = await User.findById(elderId);
+    const elder = await User.findByPk(elderId);
     if (!elder || elder.role !== 'elder') {
       return res.status(404).json({
         success: false,
@@ -52,9 +63,11 @@ exports.summonElder = async (req, res) => {
 
     // Check if there's already a pending request
     const existingRequest = await Mentorship.findOne({
-      summoner: req.user.id,
-      elder: elderId,
-      status: { $in: ['Pending', 'Active'] }
+      where: {
+        summonerId: req.user.id,
+        elderId: elderId,
+        status: { [Op.in]: ['Pending', 'Active'] }
+      }
     });
 
     if (existingRequest) {
@@ -65,22 +78,29 @@ exports.summonElder = async (req, res) => {
     }
 
     const mentorship = await Mentorship.create({
-      summoner: req.user.id,
-      elder: elderId,
+      summonerId: req.user.id,
+      elderId: elderId,
       incantation,
       topic,
       goals: goals || []
     });
 
-    // Populate the response
-    await mentorship.populate('elder', 'heroName avatar heroClass');
+    // Populate response
+    const populatedMentorship = await Mentorship.findByPk(mentorship.id, {
+      include: [{
+        model: User,
+        as: 'elder',
+        attributes: ['heroName', 'avatar', 'heroClass']
+      }]
+    });
 
     res.status(201).json({
       success: true,
       message: 'The summoning ritual has begun...',
-      data: mentorship
+      data: populatedMentorship
     });
   } catch (error) {
+    console.error(error);
     res.status(400).json({
       success: false,
       message: 'The ritual failed.',
@@ -94,12 +114,19 @@ exports.summonElder = async (req, res) => {
 // @access  Private
 exports.getMyRituals = async (req, res) => {
   try {
-    const rituals = await Mentorship.find({
-      $or: [{ summoner: req.user.id }, { elder: req.user.id }]
-    })
-      .populate('summoner', 'heroName avatar heroClass')
-      .populate('elder', 'heroName avatar heroClass')
-      .sort({ createdAt: -1 });
+    const rituals = await Mentorship.findAll({
+      where: {
+        [Op.or]: [
+          { summonerId: req.user.id },
+          { elderId: req.user.id }
+        ]
+      },
+      include: [
+        { model: User, as: 'summoner', attributes: ['heroName', 'avatar', 'heroClass'] },
+        { model: User, as: 'elder', attributes: ['heroName', 'avatar', 'heroClass'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
 
     res.status(200).json({
       success: true,
@@ -107,6 +134,7 @@ exports.getMyRituals = async (req, res) => {
       data: rituals
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       success: false,
       message: 'Server Error',
@@ -121,9 +149,15 @@ exports.getMyRituals = async (req, res) => {
 exports.respondToSummon = async (req, res) => {
   try {
     const { status, message } = req.body;
-    
-    const mentorship = await Mentorship.findById(req.params.id);
-    
+
+    // We need to fetch mentorship with associations to return populated data if needed, 
+    // or just fetch by PK first.
+    // Important: check if fields match model. (Mentorship needs associations in index.js?)
+    // I haven't added Mentorship associations in index.js yet!
+    // I need to add Mentorship associations.
+
+    const mentorship = await Mentorship.findByPk(req.params.id);
+
     if (!mentorship) {
       return res.status(404).json({
         success: false,
@@ -132,7 +166,7 @@ exports.respondToSummon = async (req, res) => {
     }
 
     // Check if the user is the elder
-    if (mentorship.elder.toString() !== req.user.id) {
+    if (mentorship.elderId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Only the Elder can respond to this summoning.'
@@ -151,17 +185,24 @@ exports.respondToSummon = async (req, res) => {
       mentorship.responseMessage = message;
     }
     mentorship.respondedAt = new Date();
-    
+
     await mentorship.save();
-    await mentorship.populate('summoner', 'heroName avatar');
-    await mentorship.populate('elder', 'heroName avatar');
+
+    // Populate
+    const populated = await Mentorship.findByPk(mentorship.id, {
+      include: [
+        { model: User, as: 'summoner', attributes: ['heroName', 'avatar'] },
+        { model: User, as: 'elder', attributes: ['heroName', 'avatar'] }
+      ]
+    });
 
     res.status(200).json({
       success: true,
       message: status === 'Active' ? 'The bond has been established!' : 'The summoning was declined.',
-      data: mentorship
+      data: populated
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       success: false,
       message: 'Server Error',
@@ -176,9 +217,9 @@ exports.respondToSummon = async (req, res) => {
 exports.completeMentorship = async (req, res) => {
   try {
     const { feedback, rating } = req.body;
-    
-    const mentorship = await Mentorship.findById(req.params.id);
-    
+
+    const mentorship = await Mentorship.findByPk(req.params.id);
+
     if (!mentorship) {
       return res.status(404).json({
         success: false,
@@ -187,8 +228,8 @@ exports.completeMentorship = async (req, res) => {
     }
 
     // Check if user is part of this mentorship
-    if (mentorship.summoner.toString() !== req.user.id && 
-        mentorship.elder.toString() !== req.user.id) {
+    if (mentorship.summonerId !== req.user.id &&
+      mentorship.elderId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'You are not part of this ritual.'
@@ -199,7 +240,7 @@ exports.completeMentorship = async (req, res) => {
     if (feedback) mentorship.feedback = feedback;
     if (rating) mentorship.rating = rating;
     mentorship.completedAt = new Date();
-    
+
     await mentorship.save();
 
     res.status(200).json({
@@ -221,12 +262,18 @@ exports.completeMentorship = async (req, res) => {
 // @access  Private (Elder)
 exports.getPendingRequests = async (req, res) => {
   try {
-    const requests = await Mentorship.find({
-      elder: req.user.id,
-      status: 'Pending'
-    })
-      .populate('summoner', 'heroName avatar heroClass specialAttacks')
-      .sort({ createdAt: -1 });
+    const requests = await Mentorship.findAll({
+      where: {
+        elderId: req.user.id,
+        status: 'Pending'
+      },
+      include: [{
+        model: User,
+        as: 'summoner',
+        attributes: ['heroName', 'avatar', 'heroClass', 'specialAttacks']
+      }],
+      order: [['createdAt', 'DESC']]
+    });
 
     res.status(200).json({
       success: true,
@@ -234,6 +281,7 @@ exports.getPendingRequests = async (req, res) => {
       data: requests
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       success: false,
       message: 'Server Error',
@@ -248,13 +296,16 @@ exports.getPendingRequests = async (req, res) => {
 exports.becomeElder = async (req, res) => {
   try {
     const { specialties, availability, bio } = req.body;
-    
-    const user = await User.findById(req.user.id);
-    
+
+    const user = await User.findByPk(req.user.id);
+
     // Requirements to become an Elder
-    const hasEnoughExperience = (user.battleHistory?.length || 0) >= 1;
-    const hasSkills = (user.specialAttacks?.length || 0) >= 3;
-    
+    const battleHistory = user.battleHistory || [];
+    const specialAttacks = user.specialAttacks || [];
+
+    const hasEnoughExperience = battleHistory.length >= 1;
+    const hasSkills = specialAttacks.length >= 3;
+
     if (!hasEnoughExperience || !hasSkills) {
       return res.status(400).json({
         success: false,
@@ -264,7 +315,7 @@ exports.becomeElder = async (req, res) => {
 
     user.role = 'elder';
     if (bio) user.heroicSummary = bio;
-    
+
     await user.save();
 
     res.status(200).json({

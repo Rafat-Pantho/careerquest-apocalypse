@@ -1,39 +1,39 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const guildSchema = new mongoose.Schema({
+const Guild = sequelize.define('Guild', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
-    type: String,
-    required: [true, 'A guild must have a name'],
-    unique: true,
-    trim: true,
-    maxlength: [50, 'Guild name cannot exceed 50 characters']
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    unique: true
   },
   description: {
-    type: String,
-    required: [true, 'Describe your guild, master'],
-    maxlength: [500, 'Description cannot exceed 500 characters']
+    type: DataTypes.STRING(500),
+    allowNull: false
   },
-  leader: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  leaderId: { // Foreign Key placeholder
+    type: DataTypes.INTEGER,
+    allowNull: false
   },
-  members: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
+  members: { // Many-to-Many typically, but using JSON to store IDs for quick migration
+    type: DataTypes.JSON,
+    defaultValue: []
+  },
   level: {
-    type: Number,
-    default: 1
+    type: DataTypes.INTEGER,
+    defaultValue: 1
   },
   experiencePoints: {
-    type: Number,
-    default: 0
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   }
+}, {
+  timestamps: true
 });
 
-module.exports = mongoose.model('Guild', guildSchema);
+module.exports = Guild;

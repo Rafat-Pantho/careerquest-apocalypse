@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -39,7 +39,7 @@ const prophecies = [
 ];
 
 const StatCard = ({ title, value, icon, color, trend }) => (
-  <motion.div 
+  <motion.div
     whileHover={{ y: -5, scale: 1.02 }}
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -104,7 +104,7 @@ const DashboardPage = () => {
   const { onlineUsers, questCount } = useSocket();
   const greeting = getGreeting();
   const timeOfDay = getTimeOfDay();
-  
+
   const [recentQuests, setRecentQuests] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -145,7 +145,7 @@ const DashboardPage = () => {
   return (
     <DashboardLayout>
       {/* Header with Time-based greeting */}
-      <motion.div 
+      <motion.div
         className="mb-8"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -181,39 +181,39 @@ const DashboardPage = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard 
-          title="Current Level" 
-          value={user?.level || 1} 
-          icon="⭐" 
-          color="border-gold-500" 
+        <StatCard
+          title="Current Level"
+          value={user?.level || 1}
+          icon="⭐"
+          color="border-gold-500"
         />
-        <StatCard 
-          title="Gold Coins" 
-          value={user?.goldCoins || 0} 
-          icon="🪙" 
-          color="border-yellow-600" 
+        <StatCard
+          title="Gold Coins"
+          value={user?.goldCoins || 0}
+          icon="🪙"
+          color="border-yellow-600"
         />
-        <StatCard 
-          title="Heroes Online" 
-          value={onlineUsers} 
-          icon="🧙‍♂️" 
-          color="border-blue-500" 
+        <StatCard
+          title="Heroes Online"
+          value={onlineUsers}
+          icon="🧙‍♂️"
+          color="border-blue-500"
         />
-        <StatCard 
-          title="Quests Available" 
-          value={questCount || recentQuests.length} 
-          icon="📜" 
-          color="border-red-500" 
+        <StatCard
+          title="Quests Available"
+          value={questCount || recentQuests.length}
+          icon="📜"
+          color="border-red-500"
         />
       </div>
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-8">
-        
+
         {/* Left Column - Quests & Activity */}
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Quests */}
-          <motion.div 
+          <motion.div
             className="dungeon-card"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -223,25 +223,24 @@ const DashboardPage = () => {
               <h2 className="text-xl font-cinzel text-gold-400">Recommended Quests</h2>
               <Link to="/quests" className="text-sm text-mana-400 hover:text-mana-300">View All →</Link>
             </div>
-            
+
             <div className="space-y-4">
               {loading ? (
                 <div className="text-center py-8 text-parchment-400">Loading quests...</div>
               ) : recentQuests.length > 0 ? (
                 recentQuests.map((quest) => (
-                  <Link 
-                    key={quest._id} 
+                  <Link
+                    key={quest._id}
                     to="/quests"
                     className="block p-4 bg-dungeon-900/50 rounded-lg border border-dungeon-700 hover:border-gold-500/50 transition-all group"
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            quest.difficulty === 'Legendary' ? 'bg-red-900/30 text-red-400' :
-                            quest.difficulty === 'Veteran' ? 'bg-orange-900/30 text-orange-400' :
-                            'bg-green-900/30 text-green-400'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${quest.difficulty === 'Legendary' ? 'bg-red-900/30 text-red-400' :
+                              quest.difficulty === 'Veteran' ? 'bg-orange-900/30 text-orange-400' :
+                                'bg-green-900/30 text-green-400'
+                            }`}>
                             {quest.difficulty}
                           </span>
                         </div>
@@ -271,7 +270,7 @@ const DashboardPage = () => {
           </motion.div>
 
           {/* Quick Navigation */}
-          <motion.div 
+          <motion.div
             className="grid grid-cols-2 md:grid-cols-4 gap-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -284,7 +283,7 @@ const DashboardPage = () => {
               { to: '/character', icon: '📋', label: 'My Profile', color: 'from-blue-900/30' },
             ].map((item) => (
               <Link key={item.to} to={item.to}>
-                <motion.div 
+                <motion.div
                   whileHover={{ scale: 1.05 }}
                   className={`bg-gradient-to-br ${item.color} to-dungeon-800 p-4 rounded-lg border border-dungeon-700 hover:border-gold-500/30 text-center transition-all`}
                 >
@@ -300,7 +299,7 @@ const DashboardPage = () => {
         <div className="space-y-6">
           {/* Profile Completion */}
           {user && (
-            <motion.div 
+            <motion.div
               className="dungeon-card"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -316,8 +315,8 @@ const DashboardPage = () => {
                 </div>
                 <div>
                   <p className="text-parchment-200 font-medium">
-                    {profileCompletion < 50 ? 'Novice Profile' : 
-                     profileCompletion < 80 ? 'Growing Profile' : 'Legendary Profile'}
+                    {profileCompletion < 50 ? 'Novice Profile' :
+                      profileCompletion < 80 ? 'Growing Profile' : 'Legendary Profile'}
                   </p>
                   <p className="text-xs text-parchment-500">
                     {profileCompletion < 100 ? 'Complete your profile to stand out!' : 'Your profile is complete!'}
@@ -335,7 +334,7 @@ const DashboardPage = () => {
           )}
 
           {/* Quick Actions */}
-          <motion.div 
+          <motion.div
             className="dungeon-card bg-gradient-to-br from-dungeon-800 to-dungeon-900"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -371,7 +370,7 @@ const DashboardPage = () => {
           </motion.div>
 
           {/* Allies Online */}
-          <motion.div 
+          <motion.div
             className="dungeon-card"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -398,7 +397,7 @@ const DashboardPage = () => {
           </motion.div>
 
           {/* Daily Prophecy */}
-          <motion.div 
+          <motion.div
             className="dungeon-card border-mystic-500/30 bg-gradient-to-br from-mystic-900/20 to-dungeon-800"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

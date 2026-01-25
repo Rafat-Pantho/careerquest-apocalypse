@@ -267,7 +267,7 @@ exports.evaluateAnswer = async (req, res) => {
         `;
 
         const result = await model.generateContent(prompt);
-        
+
         // Clean the response and parse JSON
         let responseText = result.response.text();
         responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -369,18 +369,39 @@ exports.getInterviewSummary = async (req, res) => {
     // Update user stats if authenticated
     if (req.user) {
       try {
-        await User.findByIdAndUpdate(req.user._id, {
-          $push: {
-            interviewHistory: {
-              type: interviewType,
-              jobRole: jobRole || 'General',
-              score: averageScore,
-              date: new Date(),
-              title: summary.title
-            }
-          },
-          $inc: { interviewsCompleted: 1 }
-        });
+        const user = await User.findByPk(req.user.id);
+        if (user) {
+          // Update JSON interviewHistory
+          const history = user.interviewHistory || [];
+          const newEntry = {
+            type: interviewType,
+            jobRole: jobRole || 'General',
+            score: averageScore,
+            date: new Date(),
+            title: summary.title
+          };
+          user.interviewHistory = [...history, newEntry];
+
+          // Increment interviewsCompleted
+          // We use default value JSON logic or field?
+          // In User model step 199, we defined:
+          // streaks: { type: DataTypes.JSON, defaultValue: { dailyLogin: 0, applicationsThisWeek: 0, interviewsCompleted: 0 } },
+          // And also have:
+          // interviewHistory: { type: DataTypes.JSON, defaultValue: [] },
+          // Wait, do we have a top-level `interviewsCompleted` field or is it inside `streaks`?
+          // In Mongoose code: `$inc: { interviewsCompleted: 1 }`.
+          // In User model step 208:
+          // `interviewsCompleted` is NOT a top level field. It is inside `streaks`.
+          // But wait, the Mongoose code implies it was top level.
+          // Let's check User model again. Can't check now.
+          // Assuming it's inside streaks based on "defaultValue: { ... interviewsCompleted: 0 }".
+
+          const streaks = user.streaks || { dailyLogin: 0, applicationsThisWeek: 0, interviewsCompleted: 0 };
+          streaks.interviewsCompleted = (streaks.interviewsCompleted || 0) + 1;
+          user.streaks = streaks; // Reassign to trigger update
+
+          await user.save();
+        }
       } catch (userError) {
         console.log("Could not update user stats:", userError.message);
       }

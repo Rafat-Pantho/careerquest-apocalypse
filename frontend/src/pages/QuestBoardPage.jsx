@@ -8,7 +8,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import CreateQuestForm from '../components/forms/CreateQuestForm';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const SurvivalMeter = ({ probability, size = 'md' }) => {
   const getColor = () => {
@@ -47,7 +47,7 @@ const SurvivalMeter = ({ probability, size = 'md' }) => {
 };
 
 const QuestCard = ({ quest, onClick, showProbability }) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     className="dungeon-card hover:border-gold-500/50 transition-all group cursor-pointer"
@@ -57,9 +57,9 @@ const QuestCard = ({ quest, onClick, showProbability }) => (
       <div>
         <span className={`
           inline-block px-2 py-1 rounded text-xs font-bold mb-2 border
-          ${quest.difficulty === 'Legendary' ? 'bg-red-900/30 text-red-400 border-red-500/50' : 
+          ${quest.difficulty === 'Legendary' ? 'bg-red-900/30 text-red-400 border-red-500/50' :
             quest.difficulty === 'Veteran' ? 'bg-orange-900/30 text-orange-400 border-orange-500/50' :
-            'bg-green-900/30 text-green-400 border-green-500/50'}
+              'bg-green-900/30 text-green-400 border-green-500/50'}
         `}>
           {quest.difficulty}
         </span>
@@ -135,9 +135,9 @@ const QuestDetailModal = ({ quest, onClose, onApply, loading, token }) => {
         <div className="flex items-start justify-between mb-2">
           <span className={`
             inline-block px-3 py-1 rounded text-sm font-bold border
-            ${quest.difficulty === 'Legendary' ? 'bg-red-900/30 text-red-400 border-red-500/50' : 
+            ${quest.difficulty === 'Legendary' ? 'bg-red-900/30 text-red-400 border-red-500/50' :
               quest.difficulty === 'Veteran' ? 'bg-orange-900/30 text-orange-400 border-orange-500/50' :
-              'bg-green-900/30 text-green-400 border-green-500/50'}
+                'bg-green-900/30 text-green-400 border-green-500/50'}
           `}>
             {quest.difficulty}
           </span>
@@ -181,8 +181,8 @@ const QuestDetailModal = ({ quest, onClose, onApply, loading, token }) => {
       {token && (
         <div className="mb-6">
           {!analysis ? (
-            <Button 
-              variant="mystic" 
+            <Button
+              variant="mystic"
               onClick={calculateDetailedProbability}
               loading={analyzing}
               className="w-full"
@@ -190,13 +190,13 @@ const QuestDetailModal = ({ quest, onClose, onApply, loading, token }) => {
               🔮 Get Detailed Analysis
             </Button>
           ) : (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="p-4 bg-mystic-900/20 border border-mystic-600/30 rounded-lg"
             >
               <h3 className="text-lg font-cinzel text-mystic-300 mb-4">Oracle's Analysis</h3>
-              
+
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="text-center p-3 bg-dungeon-900 rounded-lg">
                   <p className="text-xs text-parchment-400">Survival Chance</p>
@@ -204,11 +204,10 @@ const QuestDetailModal = ({ quest, onClose, onApply, loading, token }) => {
                 </div>
                 <div className="text-center p-3 bg-dungeon-900 rounded-lg">
                   <p className="text-xs text-parchment-400">Risk Level</p>
-                  <p className={`text-2xl font-bold ${
-                    analysis.riskLevel === 'Low' ? 'text-green-400' :
-                    analysis.riskLevel === 'Medium' ? 'text-amber-400' :
-                    analysis.riskLevel === 'High' ? 'text-orange-400' : 'text-red-400'
-                  }`}>{analysis.riskLevel}</p>
+                  <p className={`text-2xl font-bold ${analysis.riskLevel === 'Low' ? 'text-green-400' :
+                      analysis.riskLevel === 'Medium' ? 'text-amber-400' :
+                        analysis.riskLevel === 'High' ? 'text-orange-400' : 'text-red-400'
+                    }`}>{analysis.riskLevel}</p>
                 </div>
               </div>
 
@@ -252,8 +251,8 @@ const QuestDetailModal = ({ quest, onClose, onApply, loading, token }) => {
         <Button variant="ghost" onClick={onClose} className="flex-1">
           Close
         </Button>
-        <Button 
-          variant="gold" 
+        <Button
+          variant="gold"
           onClick={() => onApply(quest._id)}
           loading={loading}
           className="flex-1"
@@ -322,7 +321,7 @@ const QuestBoardPage = () => {
       alert('You must be logged in to accept quests!');
       return;
     }
-    
+
     setApplyingTo(questId);
     try {
       await axios.post(
@@ -357,7 +356,7 @@ const QuestBoardPage = () => {
         </div>
         <div className="flex gap-3">
           {token && (
-            <Button 
+            <Button
               variant={showProbability ? 'mystic' : 'ghost'}
               onClick={() => setShowProbability(!showProbability)}
               title="Show your survival probability for each quest"
@@ -365,8 +364,8 @@ const QuestBoardPage = () => {
               🔮 {showProbability ? 'Showing Odds' : 'Show Odds'}
             </Button>
           )}
-          <Button 
-            variant="stone" 
+          <Button
+            variant="stone"
             leftIcon={<span>➕</span>}
             onClick={() => setIsModalOpen(true)}
           >
@@ -381,7 +380,7 @@ const QuestBoardPage = () => {
         onClose={() => setIsModalOpen(false)}
         title="Post a New Quest"
       >
-        <CreateQuestForm 
+        <CreateQuestForm
           onSuccess={handleQuestCreated}
           onCancel={() => setIsModalOpen(false)}
         />
@@ -395,7 +394,7 @@ const QuestBoardPage = () => {
         size="lg"
       >
         {selectedQuest && (
-          <QuestDetailModal 
+          <QuestDetailModal
             quest={selectedQuest}
             onClose={() => setSelectedQuest(null)}
             onApply={handleApply}
@@ -415,12 +414,12 @@ const QuestBoardPage = () => {
           { id: 'recruit', label: '🌱 Recruit' }
         ].map((f) => (
           (!f.requiresProb || showProbability) && (
-            <button 
+            <button
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap
-                ${filter === f.id 
-                  ? 'bg-gold-500 text-dungeon-900' 
+                ${filter === f.id
+                  ? 'bg-gold-500 text-dungeon-900'
                   : 'bg-dungeon-800 text-parchment-400 hover:bg-dungeon-700'}
               `}
             >
@@ -443,15 +442,15 @@ const QuestBoardPage = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {filteredQuests.map(quest => (
-              <QuestCard 
-                key={quest._id} 
-                quest={quest} 
+              <QuestCard
+                key={quest._id}
+                quest={quest}
                 onClick={() => setSelectedQuest(quest)}
                 showProbability={showProbability}
               />
             ))}
           </AnimatePresence>
-          
+
           {filteredQuests.length === 0 && (
             <div className="col-span-full text-center py-12 bg-dungeon-800/30 rounded-lg border border-dashed border-dungeon-600">
               <p className="text-parchment-400 mb-4">

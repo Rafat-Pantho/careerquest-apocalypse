@@ -1,51 +1,50 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const bossBattleSchema = new mongoose.Schema({
+const BossBattle = sequelize.define('BossBattle', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   title: {
-    type: String,
-    required: [true, 'The Boss must have a name!'],
-    trim: true,
+    type: DataTypes.STRING,
+    allowNull: false,
     unique: true
   },
   description: {
-    type: String,
-    required: [true, 'Describe the terror of this beast!']
+    type: DataTypes.TEXT,
+    allowNull: false
   },
   difficulty: {
-    type: String,
-    enum: ['Tutorial', 'Easy', 'Medium', 'Hard', 'Nightmare', 'Raid Boss'],
-    default: 'Easy'
+    type: DataTypes.ENUM('Tutorial', 'Easy', 'Medium', 'Hard', 'Nightmare', 'Raid Boss'),
+    defaultValue: 'Easy'
   },
   levelRequirement: {
-    type: Number,
-    default: 1
+    type: DataTypes.INTEGER,
+    defaultValue: 1
   },
   xpReward: {
-    type: Number,
-    required: true
+    type: DataTypes.INTEGER,
+    allowNull: false
   },
   bossImage: {
-    type: String,
-    default: '/assets/bosses/default-boss.png'
+    type: DataTypes.STRING,
+    defaultValue: '/assets/bosses/default-boss.png'
   },
-  // The coding challenge
   problemStatement: {
-    type: String,
-    required: true
+    type: DataTypes.TEXT,
+    allowNull: false
   },
   starterCode: {
-    type: String,
-    default: '// Write your spell here...'
+    type: DataTypes.TEXT,
+    defaultValue: '// Write your spell here...'
   },
-  // Simple validation for the MVP: Check if the code contains specific keywords or matches a regex
-  // In a real app, we'd use a sandboxed code runner
   validationCriteria: {
-    requiredKeywords: [String],
-    forbiddenKeywords: [String],
-    expectedOutput: String // For simple return value checks
+    type: DataTypes.JSON // Storing validation rules as JSON
   }
 }, {
   timestamps: true
 });
 
-module.exports = mongoose.model('BossBattle', bossBattleSchema);
+module.exports = BossBattle;

@@ -42,8 +42,16 @@ const chatRoutes = require('./routes/chatRoutes');
 const guildRoutes = require('./routes/guildRoutes');
 const friendRoutes = require('./routes/friendRoutes');
 const cvRoutes = require('./routes/cvRoutes');
-const Quest = require('./models/Quest');
-const Message = require('./models/Message');
+const {
+  User,
+  Quest,
+  Message,
+  Barter,
+  BossBattle,
+  Bounty,
+  Guild,
+  Mentorship
+} = require('./models');
 
 // Initialize Express app
 const app = express();
@@ -151,11 +159,11 @@ const startServer = async () => {
   try {
     // Connect to database
     await connectDatabase();
-    
+
     // Start server
     const PORT = config.port;
     console.log('Attempting to start server on port:', PORT);
-    
+
     const server = app.listen(PORT, () => {
       console.log('Server callback triggered');
       console.log(`
@@ -209,7 +217,7 @@ const startServer = async () => {
 
       // Emit current quest count to the new user
       try {
-        const count = await Quest.countDocuments({ isActive: true });
+        const count = await Quest.count({ where: { isActive: true } });
         socket.emit('questCountUpdate', count);
       } catch (err) {
         console.error('Error fetching quest count for socket:', err);
@@ -225,19 +233,27 @@ const startServer = async () => {
       socket.on('chatMessage', async (data) => {
         try {
           const { sender, content, room } = data;
-          
+
           // Save to database
+          // Note: sender is expected to be the User ID
           const newMessage = await Message.create({
-            sender,
+            senderId: sender,
             content,
             room
           });
-          
-          // Populate sender info before emitting
-          await newMessage.populate('sender', 'heroName avatar heroClass level');
+
+          // Fetch with sender info
+          const messageWithSender = await Message.findOne({
+            where: { id: newMessage.id },
+            include: [{
+              model: require('./models/User'),
+              as: 'sender',
+              attributes: ['heroName', 'avatar', 'heroClass', 'level']
+            }]
+          });
 
           // Broadcast to room
-          io.to(room).emit('message', newMessage);
+          io.to(room).emit('message', messageWithSender);
         } catch (err) {
           console.error('Error handling chat message:', err);
         }
@@ -249,7 +265,7 @@ const startServer = async () => {
         console.log(`User disconnected. Total online: ${onlineUsers}`);
       });
     });
-    
+
   } catch (error) {
     console.error('💀 Failed to start server:', error.message);
     process.exit(1);
