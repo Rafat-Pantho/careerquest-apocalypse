@@ -14,7 +14,7 @@ class ApiError extends Error {
     this.statusCode = statusCode;
     this.errorCode = errorCode;
     this.isOperational = true;
-
+    
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -49,7 +49,6 @@ const formatErrorResponse = (err, req) => {
 /**
  * Global error handler middleware
  */
-// Global error handler middleware
 const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
@@ -59,9 +58,14 @@ const errorHandler = (err, req, res, next) => {
     console.error('🔥 Error:', err);
   }
 
-  // Sequelize Unique Constraint Error (Duplicate Key)
-  if (err.name === 'SequelizeUniqueConstraintError') {
-    const field = err.errors[0]?.path || 'field';
+  // Mongoose bad ObjectId
+  if (err.name === 'CastError') {
+    error = new ApiError('🔮 Invalid magical identifier format!', 400, 'INVALID_ID');
+  }
+
+  // Mongoose duplicate key
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue)[0];
     error = new ApiError(
       `⚔️ A hero with this ${field} already exists in the realm!`,
       409,
@@ -69,31 +73,13 @@ const errorHandler = (err, req, res, next) => {
     );
   }
 
-  // Sequelize Validation Error
-  if (err.name === 'SequelizeValidationError') {
-    const messages = err.errors.map(e => e.message);
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    const messages = Object.values(err.errors).map(e => e.message);
     error = new ApiError(
       `📜 Validation failed: ${messages.join(', ')}`,
       422,
       'VALIDATION_ERROR'
-    );
-  }
-
-  // Sequelize Database Error (e.g. Invalid SQL, constraints)
-  if (err.name === 'SequelizeDatabaseError') {
-    error = new ApiError(
-      '🔮 A disturbance in the SQL currents caused a failure!',
-      400,
-      'DB_ERROR'
-    );
-  }
-
-  // Sequelize Foreign Key Constraint Error
-  if (err.name === 'SequelizeForeignKeyConstraintError') {
-    error = new ApiError(
-      '🔗 This entity is bound to another and cannot be severed!',
-      409,
-      'SME_CONSTRAINT'
     );
   }
 

@@ -1,5 +1,15 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CareerQuest: The Apocalypse
+ * Bounty Model - The Mercenary's Guild (Tuition Marketplace)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Represents tuition jobs posted by parents/guardians.
+ * "Wanted: A brave soul to slay the beasts of Quadratic Equations..."
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+const mongoose = require('mongoose');
 
 const BOUNTY_STATUS = {
   OPEN: 'Open',
@@ -8,62 +18,69 @@ const BOUNTY_STATUS = {
   CANCELLED: 'Cancelled'
 };
 
-const Bounty = sequelize.define('Bounty', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+const bountySchema = new mongoose.Schema({
   title: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String,
+    required: [true, 'What is the bounty?'],
+    trim: true
   },
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: false
+  description: { // "Slay the beast of Grade 9 Math"
+    type: String,
+    required: true
   },
-  subject: {
-    type: DataTypes.STRING,
-    allowNull: false
+  subject: { // The Beast
+    type: String,
+    required: true
   },
-  gradeLevel: {
-    type: DataTypes.STRING,
-    allowNull: false
+  gradeLevel: { // Difficulty
+    type: String,
+    required: true
   },
-  reward_amount: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
-  reward_currency: {
-    type: DataTypes.STRING,
-    defaultValue: 'Gold Coins (BDT)'
-  },
-  reward_frequency: {
-    type: DataTypes.STRING,
-    defaultValue: 'Monthly'
+  reward: { // Monthly Salary in Gold (BDT)
+    amount: {
+      type: Number,
+      required: true
+    },
+    currency: {
+      type: String,
+      default: 'Gold Coins (BDT)'
+    },
+    frequency: {
+      type: String,
+      default: 'Monthly'
+    }
   },
   location: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String, // Area/Location
+    required: true
   },
   postedBy: {
-    type: DataTypes.INTEGER,
-    allowNull: false
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  applicants: {
-    type: DataTypes.JSON, // Storing applicants as JSON
-    defaultValue: []
-  },
+  applicants: [{
+    mercenary: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    message: String, // "I have slain many such beasts before..."
+    appliedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   assignedTo: {
-    type: DataTypes.INTEGER,
-    allowNull: true
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   status: {
-    type: DataTypes.ENUM(Object.values(BOUNTY_STATUS)),
-    defaultValue: BOUNTY_STATUS.OPEN
+    type: String,
+    enum: Object.values(BOUNTY_STATUS),
+    default: BOUNTY_STATUS.OPEN
   }
 }, {
   timestamps: true
 });
 
-module.exports = Bounty;
+module.exports = mongoose.model('Bounty', bountySchema);

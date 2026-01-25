@@ -7,7 +7,7 @@ import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
 import { getAvatarEmoji } from '../utils/avatarUtils';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const GuildHallPage = () => {
   const { id } = useParams();

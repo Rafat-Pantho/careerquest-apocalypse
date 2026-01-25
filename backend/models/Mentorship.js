@@ -1,50 +1,63 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CareerQuest: The Apocalypse
+ * Mentorship Model - The Summoning Circle
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Represents the connection between a Student (Summoner) and an Alumni (Elder).
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
 
-const Mentorship = sequelize.define('Mentorship', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+const mongoose = require('mongoose');
+
+const mentorshipSchema = new mongoose.Schema({
+  summoner: { // The Student
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  summonerId: { // Foreign Key placeholder
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
-  elderId: { // Foreign Key placeholder
-    type: DataTypes.INTEGER,
-    allowNull: false
+  elder: { // The Alumni/Mentor
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
   incantation: { // The message/request
-    type: DataTypes.TEXT,
-    allowNull: false
+    type: String,
+    required: [true, 'You must speak the incantation to summon an Elder!']
   },
-  topic: {
-    type: DataTypes.STRING,
-    allowNull: false
+  topic: { // What they want help with
+    type: String,
+    required: true
   },
-  goals: {
-    type: DataTypes.JSON,
-    defaultValue: []
-  },
+  goals: [{ // Specific goals for the mentorship
+    type: String
+  }],
   status: {
-    type: DataTypes.ENUM('Pending', 'Active', 'Rejected', 'Completed', 'Cancelled'),
-    defaultValue: 'Pending'
+    type: String,
+    enum: ['Pending', 'Active', 'Rejected', 'Completed', 'Cancelled'],
+    default: 'Pending'
   },
-  responseMessage: DataTypes.TEXT,
-  respondedAt: DataTypes.DATE,
-  completedAt: DataTypes.DATE,
-  feedback: DataTypes.TEXT,
+  responseMessage: { // Elder's response message
+    type: String
+  },
+  respondedAt: Date,
+  completedAt: Date,
+  feedback: String,
   rating: {
-    type: DataTypes.INTEGER,
-    validate: { min: 1, max: 5 }
+    type: Number,
+    min: 1,
+    max: 5
   },
-  sessions: { // Log of meetings stored as JSON
-    type: DataTypes.JSON,
-    defaultValue: []
-  }
+  sessions: [{ // Log of meetings
+    date: Date,
+    notes: String,
+    xpAwarded: {
+      type: Number,
+      default: 0
+    }
+  }]
 }, {
   timestamps: true
 });
 
-module.exports = Mentorship;
+module.exports = mongoose.model('Mentorship', mentorshipSchema);

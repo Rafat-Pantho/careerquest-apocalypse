@@ -15,43 +15,21 @@ if (process.env.GEMINI_API_KEY) {
   }
 }
 
-// Helper to format quest response (Mongoose compatibility)
-const formatQuest = (quest) => {
-  const q = quest.toJSON ? quest.toJSON() : quest;
-  if (q.poster) {
-    q.postedBy = q.poster;
-    delete q.poster;
-  }
-  return q;
-};
-
 // @desc    Get all quests (Job Board)
 // @route   GET /api/quests
 // @access  Public
 exports.getAllQuests = async (req, res) => {
   try {
-    // Determine sort order
-    // Mongoose: .sort({ createdAt: -1 })
-    // Sequelize: order: [['createdAt', 'DESC']]
-    const quests = await Quest.findAll({
-      where: { isActive: true },
-      include: [{
-        model: User,
-        as: 'poster',
-        attributes: ['heroName', 'avatar', 'heroClass']
-      }],
-      order: [['createdAt', 'DESC']]
-    });
-
-    const formattedQuests = quests.map(formatQuest);
+    const quests = await Quest.find({ isActive: true })
+      .populate('postedBy', 'heroName avatar heroClass')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      count: formattedQuests.length,
-      data: formattedQuests
+      count: quests.length,
+      data: quests
     });
   } catch (error) {
-    console.error(error);
     res.status(500).json({
       success: false,
       message: 'The Quest Board is dusty and unreadable.',
@@ -65,13 +43,9 @@ exports.getAllQuests = async (req, res) => {
 // @access  Public
 exports.getQuestById = async (req, res) => {
   try {
-    const quest = await Quest.findByPk(req.params.id, {
-      include: [{
-        model: User,
-        as: 'poster',
-        attributes: ['heroName', 'avatar', 'heroClass']
-      }]
-    });
+    const quest = await Quest.findById(req.params.id)
+      .populate('postedBy', 'heroName avatar heroClass')
+      .populate('applicants.hero', 'heroName avatar heroClass');
 
     if (!quest) {
       return res.status(404).json({
@@ -80,18 +54,9 @@ exports.getQuestById = async (req, res) => {
       });
     }
 
-    // For applicants, in Mongoose it was populated. 
-    // In our Sequelize JSON model, 'applicants' contains objects with 'hero' ID.
-    // We would need to manually fetch hero details if we want to populate them.
-    // For now, let's return the JSON as is, or fetch if critical.
-    // Given the Mongoose code did populate 'applicants.hero', we should try to emulate that.
-    // But it's complex with JSON column. Let's skip deep population of applicants for MVP migration step, 
-    // or do a separate fetch if needed. The frontend might break if it expects full hero objects in applicants.
-    // Recommendation: Keep it simple for this step.
-
     res.status(200).json({
       success: true,
-      data: formatQuest(quest)
+      data: quest
     });
   } catch (error) {
     res.status(500).json({
@@ -107,31 +72,17 @@ exports.getQuestById = async (req, res) => {
 // @access  Private (Guild Masters/Recruiters)
 exports.createQuest = async (req, res) => {
   try {
+    // Add user to req.body
     req.body.postedBy = req.user.id;
 
-    // Convert array fields to what Sequelize expects (JSON or String)
-    // In our model definition: requirements is JSON, rewards_perks is JSON.
-    // req.body might come in as standard JSON, which Sequelize handles fine for JSON columns.
-
-    // However, rewards structure in Mongoose was nested object, in Sequelize we have:
-    // rewards_gold (String), rewards_xp (Int), rewards_perks (JSON)
-    // We need to map if the frontend sends { rewards: { gold, xp, perks } }
-
-    const { rewards, ...rest } = req.body;
-    let questData = { ...rest };
-
-    if (rewards) {
-      questData.rewards_gold = rewards.gold;
-      questData.rewards_xp = rewards.xp;
-      questData.rewards_perks = rewards.perks;
-    }
-
-    const quest = await Quest.create(questData);
+    const quest = await Quest.create(req.body);
 
     // Emit socket event
     if (req.io) {
       req.io.emit('newQuest', quest);
-      const count = await Quest.count({ where: { isActive: true } });
+      
+      // Also emit updated count
+      const count = await Quest.countDocuments({ isActive: true });
       req.io.emit('questCountUpdate', count);
     }
 
@@ -141,7 +92,6 @@ exports.createQuest = async (req, res) => {
       data: quest
     });
   } catch (error) {
-    console.error(error);
     res.status(400).json({
       success: false,
       message: 'Failed to scribe the quest.',
@@ -155,7 +105,7 @@ exports.createQuest = async (req, res) => {
 // @access  Private
 exports.updateQuest = async (req, res) => {
   try {
-    let quest = await Quest.findByPk(req.params.id);
+    let quest = await Quest.findById(req.params.id);
 
     if (!quest) {
       return res.status(404).json({
@@ -165,32 +115,21 @@ exports.updateQuest = async (req, res) => {
     }
 
     // Make sure user is quest owner
-    // quest.postedBy is an Integer (ID) in standard Sequelize unless aliased, but we defined field 'postedBy'.
-    if (quest.postedBy !== req.user.id && req.user.role !== 'dungeon_master') {
+    if (quest.postedBy.toString() !== req.user.id && req.user.role !== 'dungeon_master') {
       return res.status(401).json({
         success: false,
         message: 'You are not the Guild Master of this quest!'
       });
     }
 
-    // Map rewards again if present
-    const { rewards, ...rest } = req.body;
-    let updateData = { ...rest };
-
-    if (rewards) {
-      updateData.rewards_gold = rewards.gold;
-      updateData.rewards_xp = rewards.xp;
-      updateData.rewards_perks = rewards.perks;
-    }
-
-    await quest.update(updateData);
-
-    // Refresh
-    const updatedQuest = await Quest.findByPk(req.params.id);
+    quest = await Quest.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
 
     res.status(200).json({
       success: true,
-      data: updatedQuest
+      data: quest
     });
   } catch (error) {
     res.status(500).json({
@@ -206,7 +145,7 @@ exports.updateQuest = async (req, res) => {
 // @access  Private
 exports.deleteQuest = async (req, res) => {
   try {
-    const quest = await Quest.findByPk(req.params.id);
+    const quest = await Quest.findById(req.params.id);
 
     if (!quest) {
       return res.status(404).json({
@@ -215,14 +154,15 @@ exports.deleteQuest = async (req, res) => {
       });
     }
 
-    if (quest.postedBy !== req.user.id && req.user.role !== 'dungeon_master') {
+    // Make sure user is quest owner
+    if (quest.postedBy.toString() !== req.user.id && req.user.role !== 'dungeon_master') {
       return res.status(401).json({
         success: false,
         message: 'You are not the Guild Master of this quest!'
       });
     }
 
-    await quest.destroy();
+    await quest.deleteOne();
 
     res.status(200).json({
       success: true,
@@ -242,7 +182,7 @@ exports.deleteQuest = async (req, res) => {
 // @access  Private
 exports.applyForQuest = async (req, res) => {
   try {
-    const quest = await Quest.findByPk(req.params.id);
+    const quest = await Quest.findById(req.params.id);
 
     if (!quest) {
       return res.status(404).json({
@@ -252,12 +192,8 @@ exports.applyForQuest = async (req, res) => {
     }
 
     // Check if already applied
-    const applicants = quest.applicants || [];
-    // Need to handle if applicants is string or object (SQLite/MySQL JSON handling varies)
-    // Sequelize usually parses it if dialect supports JSON.
-
-    const alreadyApplied = applicants.find(
-      app => app.hero === req.user.id
+    const alreadyApplied = quest.applicants.find(
+      app => app.hero.toString() === req.user.id
     );
 
     if (alreadyApplied) {
@@ -267,17 +203,10 @@ exports.applyForQuest = async (req, res) => {
       });
     }
 
-    const newApp = {
+    quest.applicants.push({
       hero: req.user.id,
-      status: 'Pending',
-      appliedAt: new Date()
-    };
-
-    // Update JSON field
-    // We must clone and set for change detection in some versions, or use set/changed
-    const newApplicants = [...applicants, newApp];
-    quest.applicants = newApplicants;
-    // quest.set('applicants', newApplicants); // Safer explicit set
+      status: 'Pending'
+    });
 
     await quest.save();
 
@@ -300,8 +229,8 @@ exports.applyForQuest = async (req, res) => {
 // @access  Private
 exports.calculateSurvivalProbability = async (req, res) => {
   try {
-    const quest = await Quest.findByPk(req.params.id);
-    const user = await User.findByPk(req.user.id);
+    const quest = await Quest.findById(req.params.id);
+    const user = await User.findById(req.user.id);
 
     if (!quest) {
       return res.status(404).json({
@@ -311,17 +240,16 @@ exports.calculateSurvivalProbability = async (req, res) => {
     }
 
     // Gather user's skills and experience
-    // User specialAttacks is JSON now
     const userSkills = user.specialAttacks?.map(s => s.attackName) || [];
     const userExperience = user.battleHistory?.map(b => ({
-      role: b.enemyVanquished || b.rank, // Handle mapping variations
-      company: b.battlefield || b.campaignName,
-      duration: b.duration || 'Unknown'
+      role: b.enemyVanquished,
+      company: b.battlefield,
+      duration: b.duration
     })) || [];
     const userEducation = user.trainingGrounds?.map(t => ({
-      degree: t.trainingType || t.scrollObtained,
-      field: t.specialization || t.disciplineMastered,
-      institution: t.academy || t.academyName
+      degree: t.trainingType,
+      field: t.specialization,
+      institution: t.academy
     })) || [];
 
     // Quest requirements
@@ -329,9 +257,7 @@ exports.calculateSurvivalProbability = async (req, res) => {
     const questTitle = quest.title;
     const questDescription = quest.description;
     const questDifficulty = quest.difficulty || 'Unknown';
-    // const questCompany = quest.company || quest.guild || 'Unknown Company'; // Mongoose had company/guild mixing in prompt?
-    // Quest model has 'guild' field
-    const questCompany = quest.guild || 'Unknown Guild';
+    const questCompany = quest.company || 'Unknown Company';
 
     const prompt = `
       You are an AI career advisor calculating a "Survival Probability" (fit score) for a job application.
@@ -340,7 +266,7 @@ exports.calculateSurvivalProbability = async (req, res) => {
       - Title: ${questTitle}
       - Company: ${questCompany}
       - Description: ${questDescription}
-      - Requirements: ${Array.isArray(questRequirements) ? questRequirements.join(', ') : questRequirements}
+      - Requirements: ${questRequirements.join(', ')}
       - Difficulty Level: ${questDifficulty}
       
       CANDIDATE PROFILE:
@@ -363,36 +289,29 @@ exports.calculateSurvivalProbability = async (req, res) => {
       }
     `;
 
+    const result = await model.generateContent(prompt);
     let analysis;
 
-    if (model) {
-      const result = await model.generateContent(prompt);
-      try {
-        let responseText = result.response.text();
-        responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        analysis = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("AI Parse Error", parseError);
-      }
-    }
-
-    if (!analysis) {
+    try {
+      let responseText = result.response.text();
+      responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      analysis = JSON.parse(responseText);
+    } catch (parseError) {
       // Calculate basic score if AI fails
-      const skillMatch = userSkills.filter(skill =>
-        (Array.isArray(questRequirements) ? questRequirements : []).some(req =>
-          (typeof req === 'string') && (req.toLowerCase().includes(skill.toLowerCase()) ||
-            skill.toLowerCase().includes(req.toLowerCase()))
+      const skillMatch = userSkills.filter(skill => 
+        questRequirements.some(req => 
+          req.toLowerCase().includes(skill.toLowerCase()) || 
+          skill.toLowerCase().includes(req.toLowerCase())
         )
       );
-
-      const reqLen = Array.isArray(questRequirements) ? questRequirements.length : 1;
-      const baseScore = Math.min(90, Math.max(20, (skillMatch.length / Math.max(reqLen, 1)) * 100));
-
+      
+      const baseScore = Math.min(90, Math.max(20, (skillMatch.length / Math.max(questRequirements.length, 1)) * 100));
+      
       analysis = {
         survivalProbability: Math.round(baseScore),
         riskLevel: baseScore >= 70 ? 'Low' : baseScore >= 50 ? 'Medium' : baseScore >= 30 ? 'High' : 'Critical',
         matchingSkills: skillMatch,
-        missingSkills: [], // Simplified
+        missingSkills: questRequirements.filter(r => !skillMatch.includes(r)),
         strengths: ['Has relevant experience'],
         concerns: ['Could strengthen skill match'],
         recommendation: 'Consider highlighting transferable skills in your application.',
@@ -404,7 +323,7 @@ exports.calculateSurvivalProbability = async (req, res) => {
       success: true,
       message: 'Survival probability calculated.',
       data: {
-        questId: quest.id,
+        questId: quest._id,
         questTitle: quest.title,
         analysis
       }
@@ -424,48 +343,41 @@ exports.calculateSurvivalProbability = async (req, res) => {
 // @access  Private
 exports.getQuestsWithProbability = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id);
-    const quests = await Quest.findAll({
-      where: { isActive: true },
-      include: [{
-        model: User,
-        as: 'poster',
-        attributes: ['heroName', 'avatar', 'heroClass']
-      }],
-      order: [['createdAt', 'DESC']],
-      limit: 20
-    });
+    const user = await User.findById(req.user.id);
+    const quests = await Quest.find({ isActive: true })
+      .populate('postedBy', 'heroName avatar heroClass')
+      .sort({ createdAt: -1 })
+      .limit(20);
 
     // Calculate quick survival probability for each quest
-    const userSkills = user.specialAttacks?.map(s => s.attackName ? s.attackName.toLowerCase() : '') || [];
-
+    const userSkills = user.specialAttacks?.map(s => s.attackName.toLowerCase()) || [];
+    
     const questsWithProbability = quests.map(quest => {
-      const q = formatQuest(quest);
-      const requirements = (q.requirements || []).map(r => (typeof r === 'string' ? r.toLowerCase() : ''));
-
+      const requirements = quest.requirements?.map(r => r.toLowerCase()) || [];
+      
       // Simple skill matching algorithm
       let matchCount = 0;
       requirements.forEach(req => {
-        if (req && userSkills.some(skill =>
-          skill && (req.includes(skill) || skill.includes(req) ||
-            req.split(' ').some(word => skill.includes(word)))
+        if (userSkills.some(skill => 
+          req.includes(skill) || skill.includes(req) ||
+          req.split(' ').some(word => skill.includes(word))
         )) {
           matchCount++;
         }
       });
 
-      const baseScore = requirements.length > 0
-        ? Math.round((matchCount / requirements.length) * 100)
+      const baseScore = requirements.length > 0 
+        ? Math.round((matchCount / requirements.length) * 100) 
         : 50;
-
+      
       // Adjust based on experience
       const experienceBonus = Math.min(20, (user.battleHistory?.length || 0) * 5);
       const educationBonus = Math.min(10, (user.trainingGrounds?.length || 0) * 3);
-
+      
       const survivalProbability = Math.min(95, Math.max(10, baseScore + experienceBonus + educationBonus));
-
+      
       return {
-        ...q,
+        ...quest.toObject(),
         survivalProbability,
         riskLevel: survivalProbability >= 70 ? 'Low' : survivalProbability >= 50 ? 'Medium' : survivalProbability >= 30 ? 'High' : 'Critical'
       };
@@ -477,7 +389,6 @@ exports.getQuestsWithProbability = async (req, res) => {
       data: questsWithProbability
     });
   } catch (error) {
-    console.error(error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch quests with probability.',

@@ -1,56 +1,43 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
  * CareerQuest: The Apocalypse
- * Database Connection - The SQL Chronicles
+ * Database Connection - The Ancient Scrolls Vault
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-const { Sequelize } = require('sequelize');
-const path = require('path');
-
-// Initialize Sequelize with environment variables
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'careerquest_apocalypse',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASSWORD || '',
-  {
-    host: process.env.DB_HOST || '127.0.0.1',
-    dialect: process.env.DB_DIALECT || 'mysql',
-    logging: false, // Set to console.log to see SQL queries
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
-  }
-);
+const mongoose = require('mongoose');
 
 /**
- * Connect to MySQL - Opening the SQL Chronicles
+ * Connect to MongoDB - Opening the Ancient Vault
  * @returns {Promise<void>}
  */
 const connectDatabase = async () => {
-  try {
-    await sequelize.authenticate();
-
-    const host = sequelize.options.host || 'localhost';
-    const dbName = sequelize.config.database || process.env.DB_NAME;
-    const dialect = sequelize.getDialect();
+    try {
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      // Mongoose 6+ no longer needs these options, but keeping for clarity
+    });
 
     console.log(`
     ╔═══════════════════════════════════════════════════════════════╗
-    ║  📜 SQL CHRONICLES OPENED SUCCESSFULLY! 📜                   ║
+    ║  📜 ANCIENT DATABASE SCROLLS CONNECTED SUCCESSFULLY! 📜      ║
     ╠═══════════════════════════════════════════════════════════════╣
-    ║  Host: ${host.padEnd(52)}                     ║
-    ║  Database: ${dbName.padEnd(48)}                 ║
-    ║  Dialect: ${dialect.padEnd(49)}                 ║
+    ║  Host: ${conn.connection.host.padEnd(52)}                     ║
+    ║  Database: ${conn.connection.name.padEnd(48)}                 ║
     ╚═══════════════════════════════════════════════════════════════╝
     `);
 
-    // Sync models (Be careful with { force: true } in production!)
-    await sequelize.sync({ alter: true });
-    console.log('✨ Tables synchronized with the ancient texts.');
+    // Handle connection events
+    mongoose.connection.on('error', (err) => {
+      console.error('⚔️ Database connection error:', err.message);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ Lost connection to the Ancient Vault!');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('🔄 Reconnected to the Ancient Vault!');
+    });
 
   } catch (error) {
     console.error(`
@@ -69,12 +56,12 @@ const connectDatabase = async () => {
  */
 const disconnectDatabase = async () => {
   try {
-    await sequelize.close();
-    console.log('📜 SQL Chronicles closed safely.');
+    await mongoose.connection.close();
+    console.log('📜 Ancient Vault sealed safely.');
   } catch (error) {
     console.error('Error closing database connection:', error.message);
     process.exit(1);
   }
 };
 
-module.exports = { sequelize, connectDatabase, disconnectDatabase };
+module.exports = { connectDatabase, disconnectDatabase };

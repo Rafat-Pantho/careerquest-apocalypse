@@ -8,7 +8,7 @@ exports.register = async (req, res) => {
     const { name, email, password, heroClass, avatar } = req.body;
 
     // Check if user exists
-    const userExists = await User.findOne({ where: { email } });
+    const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({
         success: false,
@@ -39,7 +39,7 @@ exports.register = async (req, res) => {
       success: true,
       token,
       user: {
-        id: user.id,
+        id: user._id,
         name: user.heroName,
         email: user.email,
         heroClass: user.heroClass,
@@ -72,13 +72,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check for user - include password manually since it might be hidden by default scope (if configured)
-    // Note: In our current User model, password is just a field. If we added scope logic later, we'd need to handle it.
-    // For now, we rely on the fact that Sequelize returns all fields by default unless excluded in query.
-    // But wait, in Mongoose we had select: false. In Sequelize we might need to be explicit if we added that protection.
-    // Assuming standard findOne returns password for now as we didn't add scopes in model definition explicitly to exclude it globally yet.
-    const user = await User.findOne({ where: { email } });
-
+    // Check for user
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -102,7 +97,7 @@ exports.login = async (req, res) => {
       success: true,
       token,
       user: {
-        id: user.id,
+        id: user._id,
         name: user.heroName,
         email: user.email,
         heroClass: user.heroClass,
@@ -125,7 +120,7 @@ exports.login = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id);
+    const user = await User.findById(req.user.id);
     res.status(200).json({
       success: true,
       data: user
@@ -156,16 +151,11 @@ exports.updateProfile = async (req, res) => {
     if (avatar !== undefined) updateFields.avatar = avatar;
     if (heroicSummary !== undefined) updateFields.heroicSummary = heroicSummary;
 
-    // Update
-    const [updatedRows] = await User.update(updateFields, {
-      where: { id: req.user.id }
-    });
-
-    if (updatedRows === 0) {
-      // Could mean no changes or user not found. Re-fetch to return data anyway.
-    }
-
-    const user = await User.findByPk(req.user.id);
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      updateFields,
+      { new: true, runValidators: true }
+    );
 
     if (!user) {
       return res.status(404).json({

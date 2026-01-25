@@ -1,5 +1,16 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CareerQuest: The Apocalypse
+ * Quest Model - The Job Board of Destiny
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Represents job listings and internships.
+ * - Internships = "Tutorial Levels"
+ * - Full-time Jobs = "Raid Bosses"
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+const mongoose = require('mongoose');
 
 const QUEST_TYPES = {
   TUTORIAL: 'Tutorial Level', // Internship
@@ -15,80 +26,80 @@ const QUEST_DIFFICULTY = {
   LEGENDARY: 'Legendary'  // Lead / Principal
 };
 
-const Quest = sequelize.define('Quest', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+const questSchema = new mongoose.Schema({
   title: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: {
-        msg: 'A quest must have a name!'
-      }
-    }
+    type: String,
+    required: [true, 'A quest must have a name!'],
+    trim: true
   },
   guild: { // Company Name
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: {
-        msg: 'Which guild is offering this quest?'
-      }
-    }
+    type: String,
+    required: [true, 'Which guild is offering this quest?'],
+    trim: true
   },
   type: {
-    type: DataTypes.ENUM(Object.values(QUEST_TYPES)),
-    defaultValue: QUEST_TYPES.TUTORIAL
+    type: String,
+    enum: Object.values(QUEST_TYPES),
+    default: QUEST_TYPES.TUTORIAL
   },
   difficulty: {
-    type: DataTypes.ENUM(Object.values(QUEST_DIFFICULTY)),
-    defaultValue: QUEST_DIFFICULTY.NOVICE
+    type: String,
+    enum: Object.values(QUEST_DIFFICULTY),
+    default: QUEST_DIFFICULTY.NOVICE
   },
   description: { // The Lore
-    type: DataTypes.TEXT,
-    allowNull: false,
-    validate: {
-      notEmpty: {
-        msg: 'Describe the challenge ahead!'
-      }
-    }
+    type: String,
+    required: [true, 'Describe the challenge ahead!']
   },
-  requirements: { // Store as JSON for simplicity in migration
-    type: DataTypes.JSON,
-    defaultValue: []
-  },
-  rewards_gold: { // Flattened structure
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  rewards_xp: {
-    type: DataTypes.INTEGER,
-    defaultValue: 100
-  },
-  rewards_perks: {
-    type: DataTypes.JSON,
-    defaultValue: []
+  requirements: [{ // Prerequisites
+    type: String
+  }],
+  rewards: {
+    gold: { // Salary/Stipend
+      type: String, // String to allow ranges like "10k-15k"
+      required: true
+    },
+    xp: { // Experience Points (Arbitrary value based on difficulty)
+      type: Number,
+      default: 100
+    },
+    perks: [{ // Benefits
+      type: String
+    }]
   },
   location: {
-    type: DataTypes.STRING,
-    defaultValue: 'Remote Realm'
+    type: String,
+    default: 'Remote Realm'
   },
-  postedBy: { // Foreign Key placeholder
-    type: DataTypes.INTEGER,
-    allowNull: false
+  postedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
+  applicants: [{
+    hero: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    status: {
+      type: String,
+      enum: ['Pending', 'Accepted', 'Rejected'],
+      default: 'Pending'
+    },
+    appliedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   deadline: {
-    type: DataTypes.DATE
+    type: Date
   },
   isActive: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true
 });
 
-module.exports = Quest;
+module.exports = mongoose.model('Quest', questSchema);

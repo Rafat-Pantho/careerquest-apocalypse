@@ -7,15 +7,12 @@ const User = require('../models/User');
 exports.getBattles = async (req, res) => {
   try {
     // Seed some battles if none exist (for demo purposes)
-    const count = await BossBattle.count();
+    const count = await BossBattle.countDocuments();
     if (count === 0) {
       await seedBattles();
     }
 
-    const battles = await BossBattle.findAll({
-      attributes: { exclude: ['validationCriteria'] }
-    });
-
+    const battles = await BossBattle.find().select('-validationCriteria'); // Hide the answers!
     res.status(200).json({
       success: true,
       count: battles.length,
@@ -35,10 +32,7 @@ exports.getBattles = async (req, res) => {
 // @access  Public
 exports.getBattle = async (req, res) => {
   try {
-    const battle = await BossBattle.findByPk(req.params.id, {
-      attributes: { exclude: ['validationCriteria'] }
-    });
-
+    const battle = await BossBattle.findById(req.params.id).select('-validationCriteria');
     if (!battle) {
       return res.status(404).json({
         success: false,
@@ -64,8 +58,8 @@ exports.getBattle = async (req, res) => {
 exports.attackBoss = async (req, res) => {
   try {
     const { code } = req.body;
-    const battle = await BossBattle.findByPk(req.params.id);
-    const user = await User.findByPk(req.user.id);
+    const battle = await BossBattle.findById(req.params.id);
+    const user = await User.findById(req.user.id);
 
     if (!battle) {
       return res.status(404).json({ success: false, message: 'Boss not found' });
@@ -74,16 +68,18 @@ exports.attackBoss = async (req, res) => {
     // ---------------------------------------------------------
     // MOCK CODE EXECUTION / VALIDATION LOGIC
     // ---------------------------------------------------------
-
+    // In a real app, this would send code to a sandboxed runner (e.g., Judge0, Piston).
+    // Here, we do simple keyword matching for the MVP.
+    
     let damageDealt = 0;
     let isVictory = false;
     let message = "";
 
-    const { requiredKeywords, forbiddenKeywords } = battle.validationCriteria || { requiredKeywords: [], forbiddenKeywords: [] };
+    const { requiredKeywords, forbiddenKeywords } = battle.validationCriteria;
 
     // Check for required keywords
     const missingKeywords = requiredKeywords.filter(kw => !code.includes(kw));
-
+    
     if (missingKeywords.length > 0) {
       message = `Your spell fizzled! You forgot to use: ${missingKeywords.join(', ')}`;
       damageDealt = 5; // Small damage for trying
@@ -104,19 +100,9 @@ exports.attackBoss = async (req, res) => {
     // Update User Stats if Victory
     if (isVictory) {
       // Check if already won
-      // bossBattlesWon is defined as JSON in User model step 316
-      const bossBattlesWon = user.bossBattlesWon || [];
-
-      // Check as string or int depending on ID type, usually Int in Sequelize id
-      if (!bossBattlesWon.includes(battle.id)) {
-        const newWins = [...bossBattlesWon, battle.id];
-        user.bossBattlesWon = newWins;
-        // Also update XP. Sequelize user instance typically tracks changes.
-        // We need to implement awardXP logic if it was an instance method on Sequelize model?
-        // In User.js step 199, I commented out instance methods or didn't add them all.
-        // Let's manually add XP for now.
-        user.experiencePoints = (user.experiencePoints || 0) + battle.xpReward;
-
+      if (!user.bossBattlesWon.includes(battle._id)) {
+        user.bossBattlesWon.push(battle._id);
+        user.experiencePoints += battle.xpReward;
         await user.save();
         message += ` You gained ${battle.xpReward} XP!`;
       } else {
@@ -186,6 +172,6 @@ const seedBattles = async () => {
     }
   ];
 
-  await BossBattle.bulkCreate(battles);
+  await BossBattle.insertMany(battles);
   console.log('Boss Battles Seeded!');
 };

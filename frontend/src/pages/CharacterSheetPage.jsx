@@ -6,7 +6,7 @@ import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { getAvatarEmoji, getAvatarColor, AVATAR_MAP } from '../utils/avatarUtils';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Hero classes
 const HERO_CLASSES = [

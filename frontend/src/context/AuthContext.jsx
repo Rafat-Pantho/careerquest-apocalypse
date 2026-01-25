@@ -16,7 +16,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 
 
@@ -36,12 +36,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('careerquest_token');
-
+      
       if (token) {
         try {
           // Set default auth header
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
+          
           // Verify token and get user data
           const response = await axios.get(`${API_URL}/auth/me`);
           setUser(response.data.data);
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
           delete axios.defaults.headers.common['Authorization'];
         }
       }
-
+      
       setLoading(false);
     };
 
@@ -70,11 +70,11 @@ export const AuthProvider = ({ children }) => {
       });
 
       const { token, user: userData } = response.data;
-
+      
       // Store token
       localStorage.setItem('careerquest_token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
+      
       setUser(userData);
       return { success: true, user: userData };
     } catch (err) {
@@ -91,13 +91,13 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await axios.post(`${API_URL}/auth/register`, userData);
-
+      
       const { token, user: newUser } = response.data;
-
+      
       // Store token
       localStorage.setItem('careerquest_token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
+      
       setUser(newUser);
       return { success: true, user: newUser };
     } catch (err) {
@@ -160,11 +160,11 @@ export const AuthProvider = ({ children }) => {
  */
 export const useAuth = () => {
   const context = useContext(AuthContext);
-
+  
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider. Did you forget to wrap your app?');
   }
-
+  
   return context;
 };
 
