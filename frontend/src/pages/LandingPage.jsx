@@ -15,17 +15,7 @@ import logoIcon from '../assets/logo/icon.svg';
 // Original Assets
 import spellBoltImg from '../assets/effects/spell-bolt.png';
 import fireballImg from '../assets/effects/fireball.png';
-
-// Import all wizard poses dynamically (or simplified for now)
-const wizardPoses = [];
-for (let i = 0; i <= 10; i++) {
-  wizardPoses.push(new URL(`../assets/characters/wizard_pose_${i}.png`, import.meta.url).href);
-}
-
-const magePoses = [];
-for (let i = 0; i <= 15; i++) {
-  magePoses.push(new URL(`../assets/characters/mage_pose_${i}.png`, import.meta.url).href);
-}
+import darkSpellImg from '../assets/effects/dark-spell.png';
 
 const LandingPage = () => {
   // Animation variants
@@ -139,7 +129,7 @@ const LandingPage = () => {
           ═════════════════════════════════════════════════════════════════════════ */}
       <main className="flex-grow relative z-10 flex items-center justify-center px-4 py-12">
         <motion.div
-          className="max-w-5xl w-full grid md:grid-cols-2 gap-12 items-center"
+          className="max-w-7xl w-full grid md:grid-cols-2 gap-20 items-center"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -314,7 +304,7 @@ const BattleScene = () => {
         className="relative z-10 w-40"
         initial={{ x: 0 }}
         animate={{
-          x: phase === 'walking' || phase === 'fighting' ? 80 : 0,
+          x: phase === 'walking' || phase === 'fighting' ? 50 : 0,
           y: phase === 'sitting' ? 20 : 0
         }}
         transition={{ duration: 3, ease: "linear" }}
@@ -335,7 +325,7 @@ const BattleScene = () => {
         className="relative z-10 w-48"
         initial={{ x: 0 }}
         animate={{
-          x: phase === 'walking' || phase === 'fighting' ? -80 : 0,
+          x: phase === 'walking' || phase === 'fighting' ? -50 : 0,
           y: phase === 'sitting' ? 20 : 0,
           scaleX: -1
         }}
@@ -370,14 +360,15 @@ const BattleScene = () => {
               right: spell.isWizard ? 'auto' : '65%',
               opacity: [0, 1, 1, 0],
               scale: [0.5, 1.5, 1],
+              rotate: spell.isWizard ? 0 : 360 // Add rotation for dark orb
             }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8, ease: "circIn" }}
           >
             <img
-              src={spell.type === 'bolt' ? spellBoltImg : fireballImg}
+              src={spell.type === 'bolt' ? spellBoltImg : darkSpellImg}
               alt="spell"
-              className={`w-24 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] ${!spell.isWizard ? 'transform rotate-180' : ''}`}
+              className={`w-24 mix-blend-screen drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] ${!spell.isWizard ? '' : ''}`}
             />
           </motion.div>
         ))}
@@ -388,7 +379,7 @@ const BattleScene = () => {
         {phase === 'fighting' && spells.map(spell => (
           <motion.div
             key={`flash-${spell.id}`}
-            className={`absolute w-32 h-32 rounded-full blur-xl opacity-0 ${spell.isWizard ? 'bg-mana-400' : 'bg-hp-red-500'}`}
+            className={`absolute w-32 h-32 rounded-full blur-xl opacity-0 ${spell.isWizard ? 'bg-mana-400' : 'bg-purple-600'}`} // Changed to purple for Mage
             style={{
               right: spell.isWizard ? '25%' : 'auto',
               left: spell.isWizard ? 'auto' : '25%',
