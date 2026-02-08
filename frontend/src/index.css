@@ -398,3 +398,43 @@
     opacity: 0;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CINEMATIC EFFECTS - Glitch & Lenis
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Lenis Smooth Scroll */
+html.lenis {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* Glitch Effect */
+.glitch-effect {
+  position: relative;
+  text-shadow: 2px 2px 0px rgba(239, 68, 68, 0.7), -2px -2px 0px rgba(59, 130, 246, 0.7);
+  animation: glitch-anim 2s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim {
+  0% { text-shadow: 2px 2px 0px rgba(239, 68, 68, 0.7), -2px -2px 0px rgba(59, 130, 246, 0.7); }
+  25% { text-shadow: -2px 2px 0px rgba(239, 68, 68, 0.7), 2px -2px 0px rgba(59, 130, 246, 0.7); }
+  50% { text-shadow: 2px -2px 0px rgba(239, 68, 68, 0.7), -2px 2px 0px rgba(59, 130, 246, 0.7); }
+  75% { text-shadow: -2px -2px 0px rgba(239, 68, 68, 0.7), 2px 2px 0px rgba(59, 130, 246, 0.7); }
+  100% { text-shadow: 1px 1px 0px rgba(239, 68, 68, 0.7), -1px -1px 0px rgba(59, 130, 246, 0.7); }
+}

@@ -81,18 +81,6 @@ const RegisterPage = () => {
     setTimeout(() => setActiveChar(null), 3000);
   };
 
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
-
-  // Success Animation Logic
-  useEffect(() => {
-    if (showSuccessAnimation) {
-      const timer = setTimeout(() => {
-        navigate('/login');
-      }, 5000); // Redirect after 5 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [showSuccessAnimation, navigate]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -118,89 +106,12 @@ const RegisterPage = () => {
     });
 
     if (result.success) {
-      // Trigger Success Animation instead of immediate redirect
-      setShowSuccessAnimation(true);
+      navigate('/dashboard');
     } else {
       setError(result.error);
     }
 
     setIsLoading(false);
-  };
-
-  // Skill Effects based on avatar
-  const getSkillEffect = (avatarId) => {
-    switch (avatarId) {
-      case 'warrior':
-        return (
-          <motion.div
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: 1, opacity: [0, 1, 0] }}
-            transition={{ delay: 2.5, duration: 0.5 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-2 bg-white rotate-45 shadow-[0_0_20px_rgba(255,255,255,0.8)]"
-          />
-        );
-      case 'mage':
-        return (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: [0, 1.5, 0], opacity: 1 }}
-            transition={{ delay: 2.5, duration: 1 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-purple-500 blur-xl opacity-50 mix-blend-screen"
-          />
-        );
-      case 'rogue':
-        return (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.8, 0] }}
-            transition={{ delay: 2.5, duration: 0.5 }}
-            className="absolute inset-0 bg-black mix-blend-overlay"
-          />
-        );
-      case 'healer':
-        return (
-          <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1.2, opacity: [0, 0.6, 0] }}
-            transition={{ delay: 2.5, duration: 1.5 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full border-4 border-green-400 shadow-[0_0_30px_#4ade80]"
-          />
-        );
-      case 'scholar':
-        return (
-          <motion.div
-            initial={{ y: 0, opacity: 0 }}
-            animate={{ y: -50, opacity: [0, 1, 0] }}
-            transition={{ delay: 2.5, duration: 1 }}
-            className="absolute top-1/3 left-1/2 -translate-x-1/2 text-4xl text-yellow-300 font-bold"
-          >
-            ✦ Insight ✦
-          </motion.div>
-        );
-      case 'ranger':
-        return (
-          <motion.div
-            initial={{ x: -100, opacity: 0 }}
-            animate={{ x: 100, opacity: [0, 1, 0] }}
-            transition={{ delay: 2.5, duration: 0.3 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-1 bg-teal-300 shadow-[0_0_10px_#5eead4]"
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
-  const getSuccessMessage = (avatarId) => {
-    switch (avatarId) {
-      case 'warrior': return "Victory is ours! To the arena!";
-      case 'mage': return "The mana flows... Teleporting!";
-      case 'rogue': return "Contract accepted. Vanishing...";
-      case 'healer': return "Spirit bound. Let us begin.";
-      case 'scholar': return "Thesis approved. Proceeding.";
-      case 'ranger': return "Target marked. Moving out.";
-      default: return "Ready for adventure!";
-    }
   };
 
   return (
@@ -366,9 +277,9 @@ const RegisterPage = () => {
         </div>
       </motion.div>
 
-      {/* Character Pop-up Overlay (Selection) */}
+      {/* Character Pop-up Overlay - MOVED TO BOTTOM */}
       <AnimatePresence>
-        {activeChar && !showSuccessAnimation && (
+        {activeChar && (
           <motion.div
             className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
             initial={{ opacity: 0 }}
@@ -382,6 +293,7 @@ const RegisterPage = () => {
               exit={{ y: 50, scale: 0.8, opacity: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 20 }}
             >
+              {/* Speech Bubble */}
               <motion.div
                 className="mb-6 bg-white text-dungeon-900 px-8 py-4 rounded-3xl rounded-bl-none shadow-2xl border-4 border-gold-500 relative transform -translate-x-12"
                 initial={{ opacity: 0, scale: 0, x: -20 }}
@@ -392,6 +304,7 @@ const RegisterPage = () => {
                 <div className="absolute -bottom-3 left-8 w-6 h-6 bg-white border-b-4 border-r-4 border-gold-500 transform rotate-45"></div>
               </motion.div>
 
+              {/* Character Sprite */}
               <img
                 src={CHAR_IMAGES[activeChar]}
                 alt={activeChar}
@@ -399,70 +312,6 @@ const RegisterPage = () => {
                 style={{ imageRendering: 'pixelated' }}
               />
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* SUCCESS ANIMATION OVERLAY */}
-      <AnimatePresence>
-        {showSuccessAnimation && (
-          <motion.div
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-dungeon-950/90 backdrop-blur-md"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div className="relative flex flex-col items-center justify-center w-full h-full">
-
-              {/* Skill Effect Container */}
-              {getSkillEffect(formData.avatar)}
-
-              {/* Avatar Animation */}
-              <motion.div
-                className="relative z-10"
-                initial={{ y: 100, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 100, damping: 20 }}
-              >
-                {/* Speech Bubble */}
-                <motion.div
-                  className="absolute -top-32 left-1/2 -translate-x-1/2 w-80 bg-gold-100 text-dungeon-900 px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(251,191,36,0.4)] border-4 border-gold-500 text-center z-20"
-                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ delay: 1, duration: 0.5 }}
-                >
-                  <p className="font-bold font-cinzel text-lg">{getSuccessMessage(formData.avatar)}</p>
-                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-gold-100 border-b-4 border-r-4 border-gold-500 transform rotate-45"></div>
-                </motion.div>
-
-                {/* Avatar with Skill Action */}
-                <motion.img
-                  src={CHAR_IMAGES[formData.avatar]}
-                  alt={formData.avatar}
-                  className="w-[500px] h-[500px] object-contain filter drop-shadow-[0_0_50px_rgba(251,191,36,0.6)]"
-                  style={{ imageRendering: 'pixelated' }}
-                  animate={
-                    formData.avatar === 'warrior' ? { x: [0, -10, 10, -10, 0], scale: [1, 1.1, 1] } :
-                      formData.avatar === 'mage' ? { y: [0, -20, 0], filter: ["drop-shadow(0 0 50px rgba(147,51,234,0.6))", "drop-shadow(0 0 80px rgba(147,51,234,1))", "drop-shadow(0 0 50px rgba(147,51,234,0.6))"] } :
-                        formData.avatar === 'rogue' ? { opacity: [1, 0.5, 1], x: [0, 50, -50, 0] } :
-                          formData.avatar === 'healer' ? { scale: [1, 1.05, 1], filter: ["hue-rotate(0deg)", "hue-rotate(45deg)", "hue-rotate(0deg)"] } :
-                            { scale: [1, 1.05, 1] }
-                  }
-                  transition={{ delay: 2.5, duration: 1 }}
-                />
-              </motion.div>
-
-              {/* Welcome Text */}
-              <motion.h2
-                className="mt-8 text-4xl font-cinzel text-gold-400 drop-shadow-lg"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
-                Welcome, {formData.username}!
-              </motion.h2>
-
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
